@@ -1,0 +1,151 @@
+; A-Life for Skyrim - simulation settings (Anomaly alife.ltx / simulation_objects / offline_combat_simulator dialect).
+; Distances are Skyrim world units (70 units = 1 metre). Times are game hours.
+
+[sim]
+step_hours          = 0.1667        ; offline simulation step (10 game minutes)
+walk_speed          = 20000         ; units a squad travels per game hour
+max_catchup_hours   = 336           ; longest wait / fast travel simulated in one go
+
+[online]
+switch_distance     = 17500         ; Anomaly switch_distance (250 m): squads whose sim position is inside this radius may come online;
+                                    ; they are placed 4.5-8.5k from the player out of view (7000 before 2.1: Whiterun / Kynesgrove often empty)
+offline_distance    = 11000         ; ... and go offline again beyond this one (hysteresis)
+
+[board]
+top_targets         = 5             ; sim_board.get_squad_target keeps the best 5 candidates
+best_chance         = 0.5           ; 50% the best, 50% a random one of the five
+distance_bias       = 4000          ; prior *= 1 + bias / max(distance, bias): 2x at the same place, ~1x far away
+idle_min            = 2             ; STAY_POINT_IDLE_MIN (hours spent at a place before moving on)
+idle_max            = 8             ; STAY_POINT_IDLE_MAX
+retarget_hours      = 1             ; a squad that found no target tries again after this long
+
+; simulation_objects.default_squad_behaviour: weights applied to a target's props when scoring it
+[squad_behaviour]
+actor               = 0
+all                 = 1
+base                = 1
+lair                = 0
+resource            = 2
+squad               = 0
+surge               = 3
+territory           = 1
+
+; simulation_objects.default_monster_behaviour: the same, for monster squads (lairs fill first)
+[monster_behaviour]
+lair                = 1
+monster             = 1
+territory           = 1
+base                = 0
+resource            = 0
+home                = 3             ; not Anomaly: the lair that spawned a squad keeps pulling it back (draugr keep to their own tomb)
+lair_idle_min       = 12            ; not Anomaly: a monster squad stays 12-36 game hours once it is in a lair (beasts sleep in their dens)
+lair_idle_max       = 36
+
+; sim_board.general_*_precondition: hostile-held places can only be targeted inside these windows (hour of day)
+[time_windows]
+base_raid_from      = 3
+base_raid_to        = 6
+territory_raid_from = 9
+territory_raid_to   = 15
+resource_from       = 10
+resource_to         = 6
+; monsters (factions.ltx [monsters]): when a species may roam territories (lairs are always open) ...
+monster_day_from    = 6
+monster_day_to      = 19
+monster_night_from  = 19
+monster_night_to    = 6
+; ... and when it is never brought online (sim_squad_scripted: day mutants 22-05, night mutants 06-18)
+day_monster_offline_from   = 22
+day_monster_offline_to     = 6
+night_monster_offline_from = 6
+night_monster_offline_to   = 19
+
+[respawn]
+default_idle        = 12            ; respawn_idle: a smart tries to spawn one squad this often (Anomaly 43200 s)
+default_radius      = 10500         ; respawn_radius: never respawn this close to the player (150 m)
+population_factor   = 1.0           ; alife_stalker_pop
+start_fill          = 0.7           ; share of every place's respawn quota that already lives there at game start
+monster_population_factor = 1.0     ; alife_mutant_pop: scales the lairs' monster respawn entries
+
+[ocs]                                ; Tronex offline combat simulator
+mode                = smarts         ; off | smarts (only squads assigned to the same place) | full (any two enemy squads meeting)
+combat_distance     = 2500          ; enemy squads closer than this fight (Anomaly 20 m)
+hit_base            = 0.4           ; damage per round = squad power * (hit_base + hit_factor * random)
+hit_factor          = 0.2
+rank_fraction       = 250           ; the attacker's MVP gains damage / rank_fraction rank points
+commander_gain      = 50            ; the commander gains random(1..50) / rank_fraction
+rounds_per_step     = 4
+min_squads          = 30            ; OCS only runs while more squads than this exist (it thins crowded worlds)
+flee_ratio          = 0.35          ; a squad below this share of its starting power may break off when outmatched
+heal_per_hour       = 4             ; offline recovery (percent of max health per hour, doubled while resting)
+
+[news]
+enabled             = true
+radius              = 30000         ; only report events this close to the player (0 = everywhere)
+; Anomaly dynamic_news: every line goes to the MCM News page (last 40, kept in the co-save); toasts only for nearby events
+sos                 = true          ; the weaker side calls for help when an offline fight starts
+death_reports       = true          ; a commander or veteran falls
+gossip              = true          ; a line about the state of the world every few hours
+sos_cooldown_hours  = 3             ; per place, also for battle reports (a side falls back)
+death_report_cooldown_hours = 2     ; per faction
+gossip_hours        = 6
+sos_gap_hours       = 2             ; world-wide: at most one SOS per 2 game hours
+battle_report_gap_hours = 3         ; ... one battle report per 3
+death_report_gap_hours = 3          ; ... one death report per 3
+
+; Survival-style needs (0..1000 per member). Hunger and fatigue always run; cold only with Survival Mode.
+; A need adds priority to places that satisfy it (hungry squads head for markets and hunting grounds, tired ones for inns ...).
+[loot]
+; squads strip the dead they pass: their own fallen, enemies, and bodies the player left behind (after a grace period)
+corpses             = 1
+radius              = 1800          ; how far a calm squad notices a body
+grace_seconds       = 90            ; a body is left alone this long: the player gets the first look
+give_up_seconds     = 50            ; a squad that cannot reach the body in this time forgets it
+min_value           = 25            ; not worth the walk below this much gold + wanted goods
+factions            = all           ; every squad strips the dead (or list faction ids)
+
+[balance]
+; the world levels with the player: an offline member that has fallen behind the player's level (plus the offset it was made with:
+; novices trail the player, veterans lead) gains levels a step at a time; nobody is ever lowered
+level_pace_hours    = 4             ; game hours between catch-up steps
+levels_per_pace     = 1             ; levels gained per step
+regear_gap          = 6             ; levels grown past the kit's level before a member is re-equipped
+
+[needs]
+hunger_per_hour     = 18
+fatigue_per_hour    = 22
+cold_day            = 8
+cold_night          = 30
+hungry_at           = 600
+tired_at            = 700
+cold_at             = 600
+bias_food           = 3
+bias_rest           = 4
+bias_warm           = 3
+bias_sell           = 3
+bias_heal           = 3
+
+; What squads do while they idle at a place (Anomaly's smart terrain jobs): trade, hunt, fish, raid settlements, clear dungeons.
+[activities]
+hunt_lair_weight    = 3             ; target priority of an occupied lair for hunt_lairs factions
+settlement_raid_cooldown_days = 7     ; a settlement is raided at most this often
+dungeon_reset_days            = 10    ; a cleared dungeon is left alone for this long (vanilla respawn analogue)
+raid_section_hours            = 2     ; game hours per dungeon section
+merchant_cycle_hours          = 48    ; vanilla vendors restock every 48 h
+merchant_gold_floor           = 0.40  ; a merchant is never left with less than this share of its gold
+sell_rate                     = 0.33  ; a squad sells loot for this share of its value (x speech bonus)
+buy_markup                    = 1.5   ; ... and buys at this multiple
+max_purchases_per_cycle       = 3
+hunt_rate                     = 0.25  ; catches per member per hour
+wildlife_risk                 = 0.03  ; chance per hour that wildlife turns on the hunters
+fish_rate                     = 0.30
+
+; Which factions do what (ids from factions.ltx)
+[activity_factions]
+trade           = imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, dawnguard, vigilant, caravan
+raid_settlement = bandit, forsworn, silverhand
+clear_dungeon   = wanderer, mercenary, mage, dawnguard, vigilant, necromancer, hunter
+hunt            = hunter, wanderer, mercenary, bandit, dawnguard, silverhand, forsworn
+fish            = hunter, wanderer, mercenary
+harvest_parts   = hunter, wanderer  ; take creature parts (monsters.ltx parts) from beasts they kill, then sell them
+hunt_lairs      = hunter            ; go after lairs a monster squad holds (priority hunt_lair_weight in [activities])

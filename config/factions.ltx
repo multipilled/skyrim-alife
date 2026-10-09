@@ -1,0 +1,101 @@
+; Factions: who fights whom (Anomaly game_relations.ltx [communities_relations] in readable form).
+; ally = >= 1000, friend = +600 (does not fight for you, shares half the news), rival = -600, enemy = <= -1000, unlisted = neutral.
+; Entries are symmetric: list a pair once. Only ally/enemy become engine-level combat reactions (ALifeFactions.esp);
+; friend/rival shape reputation spillover (standing.ltx).
+; Skyrim <-> Anomaly: wanderer=Loners, imperial=Duty, stormcloak=Freedom, thalmor=Military, bandit=Bandits,
+; forsworn=Monolith, mercenary=Mercs, mage=Ecologists, silverhand=Renegades.
+
+[relations]
+bandit      = ally: bandit | friend: silverhand | enemy: imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, dawnguard, vigilant
+forsworn    = ally: forsworn | enemy: imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, dawnguard, vigilant
+imperial    = ally: imperial, vigilant | enemy: stormcloak, bandit, forsworn, vampire, necromancer, silverhand
+stormcloak  = ally: stormcloak | enemy: imperial, thalmor, bandit, forsworn, vampire, necromancer, silverhand
+thalmor     = ally: thalmor | friend: imperial | enemy: stormcloak, bandit, forsworn, vampire, necromancer, silverhand   ; the White-Gold Concordat: uneasy partners of the Legion
+wanderer    = ally: wanderer, hunter, mage | enemy: bandit, forsworn, necromancer, vampire, silverhand
+hunter      = ally: hunter, wanderer, dawnguard | enemy: bandit, forsworn, vampire, necromancer, silverhand
+mercenary   = ally: mercenary | enemy: bandit, forsworn, necromancer, vampire, silverhand
+mage        = ally: mage, wanderer | enemy: bandit, forsworn, necromancer, vampire, silverhand
+necromancer = ally: necromancer, vampire | enemy: imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, dawnguard, vigilant
+vampire     = ally: vampire, necromancer | enemy: imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, dawnguard, vigilant
+dawnguard   = ally: dawnguard, vigilant, hunter | enemy: vampire, necromancer
+silverhand  = ally: silverhand | friend: bandit | enemy: imperial, stormcloak, wanderer, hunter, mercenary, vigilant, dawnguard
+vigilant    = ally: vigilant, dawnguard, imperial | enemy: vampire, necromancer, silverhand, bandit
+caravan     = ally: caravan | friend: wanderer, hunter, mage, mercenary | enemy: bandit, forsworn, necromancer, vampire, silverhand   ; Khajiit merchants: welcome on any road, prey to everyone who robs one
+; Monsters (docs/MUTANTS.md): Anomaly mutants have no relation book, every stalker community shoots them and they leave each other alone.
+wildlife    = enemy: bandit, forsworn, imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, necromancer, vampire, dawnguard, silverhand, vigilant, caravan
+draugr      = enemy: bandit, forsworn, imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, dawnguard, silverhand, vigilant, caravan   ; necromancers and vampires: fellow dead
+falmer      = enemy: bandit, forsworn, imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, necromancer, vampire, dawnguard, silverhand, vigilant, caravan
+troll       = enemy: bandit, forsworn, imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, necromancer, vampire, dawnguard, silverhand, vigilant, caravan
+spriggan    = enemy: bandit, forsworn, imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, necromancer, vampire, dawnguard, silverhand, vigilant, caravan
+zombie      = enemy: bandit, forsworn, imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, dawnguard, silverhand, vigilant, caravan   ; necromancers and vampires: fellow dead
+hound       = enemy: bandit, forsworn, imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, necromancer, dawnguard, silverhand, vigilant, caravan   ; death hounds run with the vampires
+werebeast   = enemy: bandit, forsworn, imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, necromancer, vampire, dawnguard, silverhand, vigilant, caravan
+riekling    = enemy: bandit, forsworn, imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, necromancer, vampire, dawnguard, silverhand, vigilant, caravan
+spirit      = enemy: bandit, forsworn, imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, dawnguard, silverhand, vigilant, caravan   ; necromancers and vampires: fellow dead
+hagraven    = enemy: bandit, imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, necromancer, vampire, dawnguard, silverhand, vigilant, caravan   ; the Forsworn's witch-mothers
+giant       = enemy: bandit, forsworn, imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, necromancer, vampire, dawnguard, silverhand, vigilant, caravan
+dwemer      = enemy: bandit, forsworn, imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, necromancer, vampire, dawnguard, silverhand, vigilant, caravan
+
+; Monster factions and their Anomaly mutant behaviour: predatory_day / zombied_day roam territories 06-19 and are never brought
+; online 22-05; predatory_night / zombied_night roam 19-06 and are never online 06-18; vegetarian and zombied roam any time.
+; Lairs are open always.
+[monsters]
+wildlife    = predatory_day     ; wolves, sabre cats, bears
+draugr      = zombied_night     ; the restless dead walk out of their barrows after dark
+falmer      = predatory_night   ; blind raiders of the Dwemer ruins hunt by night
+troll       = predatory_night   ; Anomaly's chimera: a rare top predator out of the caves after dark
+spriggan    = vegetarian        ; keepers of the groves
+zombie      = zombied           ; Plague of the Dead (optional plugin), ash spawn on Solstheim, necromancers' risen dead: any hour
+hound       = predatory_night   ; Anomaly psy-dog: Dawnguard death hounds hunt after dark
+werebeast   = predatory_night   ; Anomaly bloodsucker: werewolves (werebears on Solstheim) only at night
+riekling    = predatory_day     ; Anomaly snork / boar: riekling raiders, bristleback riders and wild bristlebacks (Solstheim)
+spirit      = zombied_night     ; Anomaly poltergeist: wispmothers and ghosts drift out of the ruins at night
+hagraven    = predatory_day     ; Anomaly fracture: hagravens about their nests by day
+giant       = vegetarian        ; Anomaly pseudogiant: giants herd their mammoths at any hour
+dwemer      = special           ; Dwemer automatons guard their ruins and never roam (Anomaly monster_special)
+
+; baseline attitude of each faction toward the player (Anomaly "actor" row). <= -1000 attacks on sight,
+; >= 1000 friendly, in between wary. Killing a faction's members lowers it for everyone of that faction.
+; Anomaly dynamic faction relations (game_relations.script, plugins/dynamic_faction_relations.ltx), off by default like Anomaly
+; (MCM: Dynamic relations). When on, every death shifts the matrix: half the time the victim's enemies warm to the killer's
+; faction, otherwise its friends and neutrals cool towards it (each faction 50%), by death_value x (1 + 0.5 x victim tier).
+; Crossing -1000 / +1000 is war / alliance (news). A relation pegged past a limit resets to neutral half of the time.
+[dynamic_relations]
+enabled      = false
+death_value  = 40
+friend_limit = 5000
+enemy_limit  = -5000
+locked_pairs = imperial/stormcloak   ; the Civil War stays a war
+
+[player]
+bandit      = -2000
+forsworn    = -2000
+necromancer = -2000
+vampire     = -2000
+silverhand  = -2000
+imperial    = 0
+stormcloak  = 0
+thalmor     = -500
+wanderer    = 300
+hunter      = 300
+mercenary   = 0
+mage        = 300
+dawnguard   = 300
+vigilant    = 0
+caravan     = 200
+
+; Places outside any hold (Solstheim) belong to this side by default: the East Empire Company's Raven Rock keeps Imperial law.
+[ws_faction]
+solstheim = imperial
+
+; Which side holds each hold at the start (Skyrim.esm hold location FormIDs). Forts, towns and cities inherit it.
+[hold_faction]
+16769 = imperial       ; The Reach (Markarth)
+1676A = stormcloak     ; Eastmarch (Windhelm)
+1676B = stormcloak     ; Winterhold
+1676C = stormcloak     ; The Rift (Riften)
+1676D = stormcloak     ; The Pale (Dawnstar)
+1676E = imperial       ; Hjaalmarch (Morthal)
+1676F = imperial       ; Falkreath
+16770 = imperial       ; Haafingar (Solitude)
+16772 = imperial       ; Whiterun

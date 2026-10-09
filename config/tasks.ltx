@@ -1,0 +1,123 @@
+; Tasks: jobs from squad leaders (docs/TASKS.md). Anomaly: axr_task_manager.script, tm_dynamic.ltx (generic sim tasks).
+; Distances in world units (1 km ~ 70000; a cell is 4096). Times in game hours unless named otherwise.
+
+[tasks]
+max_active         = 4        ; open jobs at once (Anomaly max_tasks); the journal quest has 4 slots
+no_job_chance      = 0.3      ; a squad leader has no work for you (axr_task_manager.script:852-857)
+offer_hours        = 6        ; a squad's job offer stays the same this long (sticky, like Anomaly's dyn_quest_rand)
+repeat_hours       = 6        ; after a job from a squad ends, it has nothing new for you this long (repeat_timeout 21600)
+expire_days        = 0        ; 0: jobs never expire (Anomaly's generic jobs have no time limit)
+max_level_over     = 6        ; bounty / assault targets at most this many levels above the player
+bounty_range       = 90000
+assault_range      = 90000
+delivery_min       = 40000    ; the recipient is at least this far from the giver ...
+delivery_max       = 160000   ; ... and at most this far
+parcel_grace_hours = 0.5      ; a delivery fails when the parcel has been out of your pack this long
+parcel             = ALifeTalk.esp|805
+
+[rewards]
+; Anomaly: bounty 8500-9500, assault 5500-10000, delivery 1500-4500 by distance, fetch = value x condition x mult +-10%, min 50;
+; goodwill +50 done / -25 failed (complete_task_inc_goodwill, fail_task_dec_goodwill).
+goodwill_done     = 50
+goodwill_fail     = 25
+memory_done       = 100       ; the giver squad's own memory of the player
+memory_fail       = 50
+gold_mult         = 1.0
+gold_min          = 50
+bounty_base       = 150       ; + per level of the target
+bounty_per_level  = 15
+assault_per_squad = 120       ; + per average level of each squad at the place
+assault_per_level = 10
+delivery_base     = 80        ; + per km, straight line from giver to recipient
+delivery_per_km   = 25
+fetch_mult        = 1.3       ; x the items' value
+
+; Which jobs each faction hands out, with weights (tm_dynamic.ltx sim_communities). Bounty and assault targets are the
+; giver's enemies in factions.ltx; delivery recipients are non-enemies the player can approach.
+[givers]
+imperial    = bounty:2, assault:2, delivery:1, fetch:2
+stormcloak  = bounty:2, assault:2, delivery:1, fetch:2
+thalmor     = bounty:3, assault:1, delivery:1, fetch:1
+wanderer    = bounty:1, assault:1, delivery:2, fetch:3
+hunter      = bounty:1, assault:2, delivery:1, fetch:3
+mercenary   = bounty:3, assault:2, delivery:1, fetch:1
+mage        = bounty:1, assault:1, delivery:2, fetch:3
+dawnguard   = bounty:2, assault:3, delivery:1, fetch:1
+vigilant    = bounty:2, assault:3, delivery:1, fetch:1
+silverhand  = bounty:2, assault:2, delivery:1, fetch:2
+caravan     = bounty:1, delivery:3, fetch:2
+bandit      = bounty:2, assault:1, delivery:1, fetch:2
+forsworn    = bounty:2, assault:2, fetch:2
+necromancer = bounty:1, assault:1, delivery:1, fetch:3
+vampire     = bounty:2, assault:1, fetch:2
+
+; Fetch lists: name = Skyrim.esm FormID, min:max, from player level, value (the plugin uses the item's real value and name).
+[fetch_lists]
+imperial    = soldier, smith
+stormcloak  = soldier, smith, food
+thalmor     = soldier, alchemy
+wanderer    = food, pelts, camp
+hunter      = pelts
+mercenary   = smith, soldier
+mage        = alchemy, gems
+dawnguard   = soldier, smith
+vigilant    = soldier, alchemy
+silverhand  = smith, pelts
+caravan     = food, smith, alchemy
+bandit      = food, soldier
+forsworn    = pelts, alchemy
+necromancer = gems, alchemy
+vampire     = gems, food
+
+[fetch_pelts]
+Wolf_Pelt       = 3AD74, 2:5, 0, 10
+Deer_Hide       = 3AD90, 2:4, 0, 10
+Fox_Pelt        = D4B35, 2:4, 0, 5
+Leather         = DB5D2, 3:6, 0, 10
+Sabre_Cat_Pelt  = 3AD6D, 1:3, 10, 25
+Cave_Bear_Pelt  = 3AD53, 1:2, 16, 60
+
+[fetch_smith]
+Iron_Ore        = 71CF3, 4:8, 0, 2
+Iron_Ingot      = 5ACE4, 3:6, 0, 7
+Steel_Ingot     = 5ACE5, 2:5, 6, 20
+Silver_Ore      = 5ACDF, 2:4, 10, 25
+Corundum_Ingot  = 5AD93, 2:4, 14, 40
+Orichalcum_Ingot = 5AD99, 2:3, 20, 45
+Ebony_Ingot     = 5AD9D, 1:2, 30, 150
+
+[fetch_soldier]
+Potion_of_Minor_Healing = 3EADD, 2:5, 0, 17
+Potion_of_Healing       = 3EADE, 2:3, 12, 36
+Potion_of_Minor_Stamina = 3EAE5, 2:4, 0, 20
+
+[fetch_alchemy]
+Bone_Meal         = 34CDD, 3:6, 0, 5
+Garlic            = 34D22, 4:8, 0, 1
+Skeever_Tail      = 3AD6F, 3:6, 0, 3
+Troll_Fat         = 3AD72, 1:3, 8, 15
+Hagraven_Feathers = 3AD66, 1:3, 10, 20
+Giant_Toes        = 3AD64, 1:2, 14, 20
+Fire_Salts        = 3AD5E, 1:3, 14, 50
+Frost_Salts       = 3AD5F, 1:2, 20, 100
+Chaurus_Eggs      = 3AD56, 2:4, 12, 10
+Void_Salts        = 3AD60, 1:2, 26, 125
+Daedra_Heart      = 3AD5B, 1:1, 30, 250
+
+[fetch_gems]
+Petty_Soul_Gem    = 2E4E2, 2:4, 0, 10
+Lesser_Soul_Gem   = 2E4E4, 1:3, 8, 25
+Common_Soul_Gem   = 2E4E6, 1:2, 16, 50
+Potion_of_Minor_Magicka = 3EAE0, 2:4, 0, 20
+
+[fetch_food]
+Ale           = 34C5E, 3:6, 0, 5
+Apple         = 64B2E, 4:8, 0, 3
+Cabbage       = 64B3F, 3:6, 0, 2
+Venison       = 669A2, 2:5, 0, 4
+Beef          = 65C99, 2:4, 0, 4
+Goat_Leg      = 65C9A, 2:4, 0, 3
+Salmon_Meat   = 65C9F, 3:5, 0, 3
+
+[fetch_camp]
+Firewood      = 6F993, 4:8, 0, 5

@@ -1,0 +1,33 @@
+name: Bug report
+description: Something in A-Life broke or behaves wrong in game
+labels: [bug]
+body:
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Game, SKSE, A-Life, mod manager
+      placeholder: 1.6.1170, SKSE 2.2.6, A-Life 2.0.0, MO2 2.5
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, what you expected, and where (location, squad, faction)
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce
+  - type: textarea
+    id: log
+    attributes:
+      label: ALife.log and crash log
+      description: bDebug=1 in ALife.ini writes Documents/My Games/Skyrim Special Edition/SKSE/ALife.log. Paste the relevant part.
+      render: text
+  - type: textarea
+    id: loadorder
+    attributes:
+      label: Load order or SKSE plugin list

@@ -1,0 +1,375 @@
+; Standing: how Skyrim's people regard the player (docs/STANDING.md). Anomaly's relation registry, with Skyrim's reasons.
+; Attitude runs -3000..+3000. Tiers: <= -1000 hostile (attacks on sight), <= -300 unfriendly, < +300 neutral, < +1000 friendly,
+; >= +1000 allied. NOTHING starts hostile by decree: a fresh traveller is at worst unfriendly. Hostility is earned or chosen.
+;
+; attitude = [base] + the [rule.*] entries that hold for this player + earned goodwill + the squad's own memory.
+
+; ---- how each faction sees an unremarkable stranger
+[base]
+imperial    = 80       ; the Legion is orderly and courteous to travellers who keep the peace
+stormcloak  = 60       ; Ulfric's men are hospitable to Nords and wary of the rest (see the race rules)
+thalmor     = -350     ; cold, suspicious, contemptuous: unfriendly to everyone who is not their own
+bandit      = -650     ; outlaws take what they can from travellers, but they are cowards: the odds decide
+forsworn    = -750     ; the Reach is at war with outsiders; they defend it rather than hunt on the roads
+silverhand  = -600     ; zealous werewolf hunters: dangerous to lycanthropes, merely hostile-minded to the rest
+necromancer = -600     ; reclusive; they kill intruders at their work, they do not stalk the roads
+vampire     = -750     ; predators of the night
+dawnguard   = 150      ; vampire hunters; friendly to the living
+vigilant    = 0        ; Stendarr's zealots: polite until you are something they hunt
+wanderer    = 220      ; adventurers and travellers look out for one another
+hunter      = 180      ; woodsfolk
+mercenary   = 60       ; sellswords: pragmatic, owe you nothing
+mage        = 120      ; travelling scholars and College mages: curious, open
+caravan     = 200      ; Khajiit merchants: courteous to anyone whose coin is good; wary of those who have robbed a caravan
+
+; boldness of outlaws: how readily they attack when they think they hold the advantage (0..1)
+[opportunism]
+bandit      = 1.0
+forsworn    = 0.25
+silverhand  = 0.5
+necromancer = 0.15
+vampire     = 0.8
+
+; how fiercely a faction defends the ground it holds against anyone it dislikes (0..1)
+[territorial]
+bandit      = 0.7
+forsworn    = 0.95
+silverhand  = 0.5
+necromancer = 0.9
+vampire     = 0.7
+imperial    = 0.6      ; forts and camps challenge armed strangers they distrust
+stormcloak  = 0.6
+dawnguard   = 0.4
+vigilant    = 0.4
+
+; challenge armed strangers rather than hunting them (law enforcement, orders, zealotry)
+[lawful]
+imperial   = 1
+stormcloak = 1
+thalmor    = 1
+dawnguard  = 1
+vigilant   = 1
+
+; offers a toll before it attacks
+[parley]
+bandit = 1
+
+; bolder in the dark
+[nocturnal]
+vampire = 1
+
+; how much killing their people brands the player a murderer (default 1). Killing Thalmor is not murder to most Nords.
+[murder_weight]
+thalmor = 0.3
+
+[tiers]
+hostile    = -1000
+unfriendly = -300
+friendly   = 300
+allied     = 1000
+
+[deeds]
+goodwill_max          = 2000
+kill_base             = 40      ; goodwill lost with a faction for each of its people killed (+ per level, + veteran)
+kill_per_level        = 1.2
+kill_veteran          = 25
+kill_provoked_mult    = 0.35    ; they attacked first
+ally_share            = 0.5     ; allies of the victims take it half as hard
+friend_share          = 0.25
+enemy_share           = 0.25    ; the victims' enemies are pleased by a quarter
+unseen_mult           = 0.15    ; nobody saw it
+discover_chance       = 0.4     ; a patrol finds the bodies later
+discover_mult         = 0.6
+discover_min_hours    = 6
+discover_max_hours    = 36
+help_base             = 14      ; killing a foe of a squad that was watching
+help_per_level        = 0.5
+daily_gain_cap        = 150     ; goodwill cannot be farmed
+trade_per_100_gold    = 1.5
+attack_goodwill       = 8
+notoriety_per_severity = 0.8
+
+[memory]                         ; what a squad itself holds against / owes the player
+attack         = -250
+kill           = -180
+help           = 150
+toll           = 120
+half_life_days = 20
+
+[decay]                          ; bad deeds are remembered longer than good ones
+goodwill_positive_half_life_days = 40
+goodwill_negative_half_life_days = 100
+notoriety_half_life_days         = 60
+
+[disguise]
+bonus     = 350                  ; wearing their colours (full set)
+suspicion = 250                  ; wearing their enemy's colours
+
+[predators]
+advantage_floor = 0.7            ; squad power / player power below this: they will not risk it
+advantage_full  = 2.0            ; at or above this they are sure
+hunger_bonus    = 0.15
+wealth_bonus    = 0.2
+night_bonus     = 0.25
+fear_penalty    = 0.25           ; a notorious killer is not worth the risk
+parley_from     = 0.35
+attack_at       = 0.6
+ambush_at       = 0.85
+
+[meeting]
+notice_range    = 2200
+greet_range     = 700
+challenge_range = 1100
+challenge_grace = 9              ; seconds a challenge is allowed to stand before it ends in blood
+talk_cooldown   = 90             ; seconds after a conversation closes before another squad stops the player to talk (attacks are not held back)
+territory_radius = 2500
+
+[crime]
+murder_bounty = 650        ; crime gold a hold adds for killing its own soldiers without cause (guards then hunt the player there)
+
+[toll]
+base       = 40
+per_level  = 6
+pass_hours = 12
+
+; ============================================================================================================
+; Rules: because the player is X, faction Y regards them better or worse.
+; when = flag & !flag & race:a,b & level>=N & notoriety>=N & bounty>=N (crime gold in the squad's hold) & enforces
+;        & disguise:<faction>>=0.5      flags: imperial stormcloak companions thieves brotherhood college dawnguard volkihar
+;        blades greybeards vampire werewolf beast armed sneaking mounted incombat night
+; ============================================================================================================
+
+; ---- the Civil War: a sworn soldier is a friend to their side and a target to the other
+[rule.legion_sworn]
+label      = Sworn to the Imperial Legion
+when       = imperial
+imperial   = 650
+stormcloak = -1300
+thalmor    = 350
+vigilant   = 200
+
+[rule.stormcloak_sworn]
+label      = Sworn to the Stormcloaks
+when       = stormcloak
+stormcloak = 650
+imperial   = -1300
+thalmor    = -500
+
+[rule.blades]
+label      = A known friend of the Blades
+when       = blades
+thalmor    = -300
+imperial   = 100
+
+[rule.greybeards]
+label      = Heard of at High Hrothgar
+when       = greybeards
+stormcloak = 100
+imperial   = 60
+wanderer   = 40
+
+; ---- guilds
+[rule.companions]
+label      = Companion of Jorrvaskr
+when       = companions
+wanderer   = 120
+hunter     = 120
+mercenary  = 150
+silverhand = -300
+imperial   = 40
+stormcloak = 40
+
+[rule.college]
+label      = Student of the College of Winterhold
+when       = college
+mage       = 300
+wanderer   = 50
+
+[rule.thieves_guild]
+label      = Known to the underworld
+when       = thieves
+bandit     = 250
+mercenary  = 50
+caravan    = 250   ; the Guild fences through Khajiit caravans
+
+[rule.khajiit_kin]
+label      = A fellow child of Elsweyr
+when       = race:khajiit
+caravan    = 300
+
+[rule.dark_brotherhood]
+label      = Whispers follow the Brotherhood
+when       = brotherhood
+bandit      = 300
+necromancer = 150
+imperial    = -100
+wanderer    = -60
+
+; ---- the Dawnguard and the vampires
+[rule.dawnguard_member]
+label      = A Dawnguard
+when       = dawnguard
+dawnguard  = 700
+vigilant   = 400
+hunter     = 150
+vampire    = -1400
+necromancer = -300
+
+[rule.volkihar]
+label      = Of the Volkihar clan
+when       = volkihar
+vampire    = 900
+necromancer = 300
+dawnguard  = -1500
+vigilant   = -1000
+hunter     = -300
+
+[rule.vampire]
+label      = A vampire
+when       = vampire
+vampire    = 1100
+dawnguard  = -1300
+vigilant   = -1300
+hunter     = -400
+mage       = -100
+
+[rule.werewolf]
+label      = A werewolf
+when       = werewolf
+silverhand = -1500
+vigilant   = -500
+wanderer   = -50
+
+[rule.beast_form]
+label      = A beast in the open
+when       = beast
+imperial   = -700
+stormcloak = -700
+thalmor    = -600
+wanderer   = -650
+hunter     = -800
+mercenary  = -650
+mage       = -650
+dawnguard  = -700
+vigilant   = -700
+silverhand = -900
+bandit     = -300
+forsworn   = -300
+
+; ---- who you are
+[rule.race_nord]
+label      = A Nord
+when       = race:nord
+stormcloak = 120
+thalmor    = -100
+forsworn   = -150
+
+[rule.race_imperial]
+label      = An Imperial
+when       = race:imperial
+stormcloak = -200
+forsworn   = -150
+
+[rule.race_breton]
+label      = A Breton, kin to the Reach
+when       = race:breton
+forsworn   = 400
+
+[rule.race_altmer]
+label      = A High Elf
+when       = race:altmer
+thalmor    = 450
+stormcloak = -400
+
+[rule.race_bosmer]
+label      = A Wood Elf
+when       = race:bosmer
+thalmor    = 100
+stormcloak = -250
+
+[rule.race_dunmer]
+label      = A Dark Elf
+when       = race:dunmer
+stormcloak = -250
+
+[rule.race_others]
+label      = Not of the north
+when       = race:argonian,khajiit,orsimer
+stormcloak = -150
+
+; ---- the law: soldiers are the law in the holds their side holds. Gold owed there makes you a wanted man to them.
+[rule.wanted]
+label      = Wanted in this hold
+when       = enforces & bounty>=100
+imperial   = -450
+stormcloak = -450
+thalmor    = -450
+dawnguard  = -300
+vigilant   = -300
+
+[rule.wanted_badly]
+label      = A dangerous criminal in this hold
+when       = enforces & bounty>=500
+imperial   = -900
+stormcloak = -900
+thalmor    = -900
+dawnguard  = -600
+vigilant   = -600
+
+; ---- reputation for killing
+[rule.murderer]
+label      = Known for murder
+when       = notoriety>=250
+imperial   = -150
+stormcloak = -150
+thalmor    = -100
+wanderer   = -150
+hunter     = -150
+mercenary  = -100
+mage       = -150
+dawnguard  = -150
+vigilant   = -150
+bandit     = 120
+silverhand = 60
+necromancer = 60
+vampire    = 100
+
+[rule.murderer_notorious]
+label      = A notorious killer
+when       = notoriety>=600
+imperial   = -400
+stormcloak = -400
+thalmor    = -300
+wanderer   = -400
+hunter     = -400
+mercenary  = -300
+mage       = -400
+dawnguard  = -400
+vigilant   = -400
+bandit     = 130
+silverhand = 100
+necromancer = 100
+vampire    = 150
+
+; ---- fame
+[rule.renown_20]
+label      = Word of your deeds has spread
+when       = level>=20
+imperial   = 50
+stormcloak = 50
+wanderer   = 50
+hunter     = 50
+mercenary  = 50
+mage       = 50
+dawnguard  = 50
+
+[rule.renown_40]
+label      = A hero of Skyrim
+when       = level>=40
+imperial   = 100
+stormcloak = 100
+wanderer   = 100
+hunter     = 100
+mercenary  = 100
+mage       = 100
+dawnguard  = 100

@@ -1,0 +1,17 @@
+build*/
+facegen/
+package/
+*.zip
+*.log
+*.pdb
+*.dll
+*.esp
+*.pex
+!config/*.ltx
+.locks/
+
+# Game data, outputs, extracted assets and agent worktrees: never committed
+gamedata/
+out/
+extracted/
+.claude/worktrees/

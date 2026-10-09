@@ -1,0 +1,371 @@
+; Creatures that monster squads are made of (docs/MUTANTS.md). One [creature_<id>] per kind.
+;   name                 : display name (logs, debug status)
+;   form                 : Skyrim.esm leveled actor list (LVLN) or actor base (NPC_) placed when the squad comes online;
+;                          a leveled list lets the engine pick the variant for the player's level, like vanilla encounters
+;   health, health_per_level, damage, damage_per_level, hit : offline stats for the board (power = sqrt(damage * hit * health) * 10,
+;                          the formula human members use), approximating the vanilla creatures at each level
+; form = <hex FormID> for Skyrim.esm, or <plugin>|<local id hex> for a record in another plugin (resolved when the game has
+; loaded; a creature whose plugin is not loaded is dropped with one log line, and squads left without creatures are never made).
+;   parts                : what a hunter takes from one it kills offline (<Skyrim.esm hex form>:<count>, ...); hunters sell them
+;                          to traders (activity_factions harvest_parts / hunt_lairs in alife.ltx)
+; Vanilla, Dawnguard and Dragonborn creatures only; the one Creation Club exception is Plague of the Dead (zombies).
+
+[creature_wolf]
+name = Wolf
+form = 0B83C2                 ; LCharWolf (wolf, red wolf)
+health = 40
+health_per_level = 3
+damage = 5
+damage_per_level = 0.3
+hit = 0.7
+parts = 03AD74:1                  ; WolfPelt
+
+[creature_sabrecat]
+name = Sabre Cat
+form = 0FE2D5                 ; LCharSabrecat (sabre cat, snowy sabre cat)
+health = 100
+health_per_level = 5
+damage = 11
+damage_per_level = 0.5
+hit = 0.7
+parts = 03AD6D:1              ; SabreCatPelt
+
+[creature_bear]
+name = Bear
+form = 042266                 ; LCharBearAll (bear, cave bear, snow bear)
+health = 150
+health_per_level = 7
+damage = 14
+damage_per_level = 0.6
+hit = 0.65
+parts = 03AD52:1, 06BC02:1        ; BearPelt, BearClaws
+
+[creature_draugr]
+name = Draugr
+form = 055955                 ; LCharDraugrMeleeAllMale
+health = 60
+health_per_level = 5
+damage = 6
+damage_per_level = 0.4
+hit = 0.6
+parts = 034CDD:1                ; BoneMeal
+
+[creature_draugr_archer]
+name = Draugr Archer
+form = 01E7AA                 ; LCharDraugrMissile
+health = 50
+health_per_level = 4.5
+damage = 5.5
+damage_per_level = 0.38
+hit = 0.5
+parts = 034CDD:1         ; BoneMeal
+
+[creature_draugr_warlock]
+name = Draugr Warlock
+form = 01E7AB                 ; LCharDraugrWarlock
+health = 50
+health_per_level = 4.5
+damage = 7
+damage_per_level = 0.45
+hit = 0.6
+parts = 034CDD:1        ; BoneMeal
+
+[creature_draugr_boss]
+name = Draugr Deathlord
+form = 0DD9D8                 ; LCharDraugrBossNoDragonPriest
+health = 160
+health_per_level = 10
+damage = 11
+damage_per_level = 0.6
+hit = 0.75
+parts = 034CDD:2           ; BoneMeal
+
+[creature_falmer]
+name = Falmer
+form = 01E77D                 ; LCharFalmerMelee
+health = 60
+health_per_level = 5
+damage = 6
+damage_per_level = 0.4
+hit = 0.6
+parts = 03AD5D:1                ; FalmerEar
+
+[creature_falmer_archer]
+name = Falmer Archer
+form = 01E77E                 ; LCharFalmerMissile
+health = 50
+health_per_level = 4.5
+damage = 5.5
+damage_per_level = 0.38
+hit = 0.5
+parts = 03AD5D:1         ; FalmerEar
+
+[creature_falmer_shaman]
+name = Falmer Shaman
+form = 01E77F                 ; LCharFalmerShaman
+health = 50
+health_per_level = 4.5
+damage = 7
+damage_per_level = 0.45
+hit = 0.6
+parts = 03AD5D:1         ; FalmerEar
+
+[creature_falmer_boss]
+name = Falmer Gloomlurker
+form = 05238F                 ; LCharFalmerBoss
+health = 150
+health_per_level = 9
+damage = 10
+damage_per_level = 0.6
+hit = 0.75
+parts = 03AD5D:1           ; FalmerEar
+
+[creature_wolf_alpha]
+name = Alpha Wolf
+form = 023ABF                 ; EncWolfIce: the ice wolf that leads an older pack
+health = 70
+health_per_level = 4
+damage = 8
+damage_per_level = 0.45
+hit = 0.7
+parts = 03AD75:1            ; WolfIcePelt
+
+[creature_skeever]
+name = Skeever
+form = 023AB7                 ; EncSkeever
+health = 20
+health_per_level = 1.5
+damage = 3
+damage_per_level = 0.2
+hit = 0.7
+parts = 03AD6F:1               ; SkeeverTail
+
+[creature_troll]
+name = Troll
+form = 023ABA                 ; EncTroll
+health = 200
+health_per_level = 9
+damage = 16
+damage_per_level = 0.7
+hit = 0.7
+parts = 03AD72:1                 ; TrollFat
+
+[creature_troll_frost]
+name = Frost Troll
+form = 023ABB                 ; EncTrollFrost
+health = 260
+health_per_level = 11
+damage = 20
+damage_per_level = 0.8
+hit = 0.7
+parts = 03AD72:2           ; TrollFat
+
+[creature_spriggan]
+name = Spriggan
+form = 10EC84                 ; LCharSpriggan (spriggan, matron)
+health = 90
+health_per_level = 5
+damage = 10
+damage_per_level = 0.5
+hit = 0.65
+parts = 063B5F:1              ; SprigganSap
+
+[creature_zombie]
+name = Zombie
+form = ccbgssse003-zombies.esl|822   ; ccBGSSSE003_LCharBGSSSE003ZombieMelee (Plague of the Dead)
+health = 60
+health_per_level = 5
+damage = 6
+damage_per_level = 0.4
+hit = 0.55
+
+; ---- M4b (docs/MUTANTS.md 2.1): the rest of the Anomaly mapping. Dawnguard / Dragonborn records by plugin|local id
+
+[creature_horker]
+name = Horker
+form = 023AB1                ; EncHorker (coasts)
+health = 80
+health_per_level = 4
+damage = 8
+damage_per_level = 0.3
+hit = 0.6
+
+[creature_deathhound]
+name = Death Hound
+form = Dawnguard.esm|017EC2  ; DLC1LvlDeathHound (Dawnguard)
+health = 60
+health_per_level = 4
+damage = 9
+damage_per_level = 0.4
+hit = 0.7
+
+[creature_bristleback]
+name = Bristleback
+form = Dragonborn.esm|025F9A ; DLC2LvlBoar (Dragonborn)
+health = 90
+health_per_level = 5
+damage = 10
+damage_per_level = 0.4
+hit = 0.7
+
+[creature_riekling]
+name = Riekling
+form = Dragonborn.esm|01B653 ; DLC2LCharRieklingMelee
+health = 40
+health_per_level = 3
+damage = 6
+damage_per_level = 0.3
+hit = 0.65
+
+[creature_riekling_archer]
+name = Riekling Hunter
+form = Dragonborn.esm|01B654 ; DLC2LCharRieklingMissile
+health = 35
+health_per_level = 3
+damage = 6
+damage_per_level = 0.3
+hit = 0.6
+
+[creature_riekling_rider]
+name = Riekling Rider
+form = Dragonborn.esm|038EB0 ; DLC2LCharMountedRiekling (on a bristleback)
+health = 120
+health_per_level = 5
+damage = 11
+damage_per_level = 0.4
+hit = 0.7
+
+[creature_werewolf]
+name = Werewolf
+form = 01E791                ; LCharWerewolf
+health = 250
+health_per_level = 8
+damage = 20
+damage_per_level = 0.6
+hit = 0.7
+
+[creature_werewolf_boss]
+name = Werewolf Beastmaster
+form = 0A1981                ; LCharWerewolfBoss
+health = 320
+health_per_level = 9
+damage = 24
+damage_per_level = 0.7
+hit = 0.7
+
+[creature_werebear]
+name = Werebear
+form = Dragonborn.esm|0322B1 ; DLC2EncWerebear (Solstheim)
+health = 350
+health_per_level = 10
+damage = 25
+damage_per_level = 0.7
+hit = 0.65
+
+[creature_chaurus]
+name = Chaurus
+form = 01FA27                ; LCharChaurus
+health = 60
+health_per_level = 4
+damage = 8
+damage_per_level = 0.4
+hit = 0.65
+
+[creature_chaurus_hunter]
+name = Chaurus Hunter
+form = Dawnguard.esm|0029A2  ; DLC1LCharChaurusHunter (Dawnguard)
+health = 120
+health_per_level = 5
+damage = 12
+damage_per_level = 0.5
+hit = 0.7
+
+[creature_necromancer]
+name = Necromancer
+form = 01E777                ; LCharWarlockNecromancer: the one who raised them
+health = 80
+health_per_level = 5
+damage = 12
+damage_per_level = 0.6
+hit = 0.6
+
+[creature_ashspawn]
+name = Ash Spawn
+form = Dragonborn.esm|0322BD ; DLC2LCharAshSpawnAll (Solstheim)
+health = 100
+health_per_level = 5
+damage = 12
+damage_per_level = 0.5
+hit = 0.6
+
+[creature_wispmother]
+name = Wispmother
+form = 023ABD                ; EncWispMother
+health = 200
+health_per_level = 6
+damage = 16
+damage_per_level = 0.5
+hit = 0.65
+
+[creature_ghost]
+name = Ghost
+form = 104B62                ; LCharGhostWizard
+health = 80
+health_per_level = 4
+damage = 12
+damage_per_level = 0.5
+hit = 0.6
+
+[creature_hagraven]
+name = Hagraven
+form = 023AB0                ; EncHagraven
+health = 150
+health_per_level = 6
+damage = 18
+damage_per_level = 0.6
+hit = 0.7
+
+[creature_giant]
+name = Giant
+form = 030529                ; LCharGiant
+health = 500
+health_per_level = 10
+damage = 40
+damage_per_level = 1.0
+hit = 0.5
+
+[creature_mammoth]
+name = Mammoth
+form = 023AB4                ; EncMammothWild
+health = 800
+health_per_level = 10
+damage = 30
+damage_per_level = 0.5
+hit = 0.5
+
+[creature_dwarven_spider]
+name = Dwarven Spider
+form = 10EC90                ; LCharDwarvenSpider
+health = 40
+health_per_level = 3
+damage = 6
+damage_per_level = 0.3
+hit = 0.65
+
+[creature_dwarven_sphere]
+name = Dwarven Sphere
+form = 10EC8F                ; LCharDwarvenSphere
+health = 150
+health_per_level = 6
+damage = 14
+damage_per_level = 0.5
+hit = 0.65
+
+[creature_dwarven_centurion]
+name = Dwarven Centurion
+form = 10FCE5                ; LCharDwarvenCenturion
+health = 600
+health_per_level = 10
+damage = 35
+damage_per_level = 0.8
+hit = 0.55

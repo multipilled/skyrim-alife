@@ -1,0 +1,712 @@
+; Smart terrain properties (Anomaly simulation_objects_props.ltx + smart terrain respawn params).
+;
+;   base / territory / resource / surge / lair : what kind of target the place is for the sim board
+;   all                                       : any faction may pick it (Anomaly "all")
+;   <faction id> = n                          : extra target priority for that faction; a faction with n = 0 (and all = 0) never targets it
+;   owner = n                                 : extra priority for the place's default faction (the hold's side, or default_faction)
+;   max_population                            : squads that may be assigned (heading there or staying) at once
+;   default_faction = hold | none | <id>      : who holds it at the start ("hold" = the side holding the hold, see factions.ltx)
+;   faction_controlled                        : only the controlling faction's squads respawn here; control flips when others take it
+;   respawn = a, b                            : respawn entries -> sections [spawn_a] [spawn_b]
+;   respawn_idle / respawn_radius             : game hours between respawn attempts / minimum distance from the player
+;   (an overlay's respawn_idle is a floor: the place restocks no faster than that)
+;   monster_population                        : at most this many monster squads at once (0 = only max_population): one pack per
+;                                               den, so the overflow fills the next empty lair (Anomaly's lairs fill up first)
+;   lair                                      : a monster lair: monster squads may always target it and fill lairs first (docs/MUTANTS.md)
+;   monster = n                               : any monster squad may pick it (Anomaly all_monster); `all` stays for people only
+;
+; [keyword_props] adds a section to every location that carries a keyword (numbers add up, respawn entries are appended),
+; on top of its kind preset: that is how Nordic ruins become draugr lairs whatever the classifier called them.
+;
+; A [loc_<FormID hex>] section overrides one specific location (inherit a preset with :p_name).
+
+[default]
+base = 0
+territory = 0
+resource = 0
+surge = 0
+lair = 0
+all = 0
+monster = 0
+owner = 0
+max_population = 2
+arrive_dist = 600
+sim_avail = true
+faction_controlled = false
+default_faction = none
+
+[kind_map]
+wilderness = p_wild
+city = p_city
+town = p_town
+farm = p_farm
+inn = p_inn
+fort = p_fort
+bandit_camp = p_banditcamp
+forsworn_camp = p_forswornccamp
+military_camp = p_milcamp
+dungeon = p_dungeon
+crypt = p_crypt
+dwarven_ruin = p_ruin
+mine = p_mine
+vampire_lair = p_vamp
+warlock_lair = p_warlock
+werewolf_lair = default
+giant_camp = default
+falmer_hive = default
+dragon_lair = default
+animal_den = p_animalden
+hagraven_nest = default
+spriggan_grove = default
+orc_stronghold = p_orc
+dragon_priest_lair = p_dpl
+shipwreck = p_shipwreck
+mill = p_farm
+
+; ---------------------------------------------------------------- respawn entries
+[spawn_owner_garrison]
+faction = owner
+squads = {f}_advanced, {f}_veteran
+num = 1
+
+[spawn_owner_patrol]
+faction = owner
+squads = {f}_novice, {f}_advanced
+num = 0.5
+
+[spawn_garrison]
+faction = controller
+squads = {f}_advanced, {f}_veteran
+num = 1
+
+[spawn_patrol]
+faction = controller
+squads = {f}_novice, {f}_advanced
+num = 1
+
+[spawn_bandit_camp]
+faction = bandit
+squads = bandit_novice, bandit_advanced, bandit_veteran
+num = 1.0
+
+[spawn_bandit_den]
+faction = bandit
+squads = bandit_novice, bandit_advanced
+num = 0.15
+
+[spawn_forsworn]
+faction = forsworn
+squads = forsworn_novice, forsworn_advanced, forsworn_veteran
+num = 2
+
+[spawn_necromancer]
+faction = necromancer
+squads = necromancer_novice, necromancer_advanced, necromancer_veteran
+num = 0.75
+
+[spawn_necromancer_rare]
+faction = necromancer
+squads = necromancer_novice, necromancer_advanced
+num = 0.15
+
+[spawn_vampire]
+faction = vampire
+squads = vampire_novice, vampire_advanced, vampire_veteran
+num = 1
+
+[spawn_wanderers]
+faction = wanderer
+squads = wanderer_novice, wanderer_advanced, wanderer_veteran
+num = 0.6
+
+[spawn_hunters]
+faction = hunter
+squads = hunter_novice, hunter_advanced
+num = 0.4
+
+[spawn_mercs]
+faction = mercenary
+squads = mercenary_novice, mercenary_advanced
+num = 0.5
+
+[spawn_wanderers_town]
+faction = wanderer
+squads = wanderer_novice, wanderer_advanced
+num = 0.4
+
+[spawn_hunters_town]
+faction = hunter
+squads = hunter_novice, hunter_advanced
+num = 0.25
+
+[spawn_mercs_town]
+faction = mercenary
+squads = mercenary_novice, mercenary_advanced
+num = 0.2
+
+[spawn_mages_town]
+faction = mage
+squads = mage_novice, mage_advanced
+num = 0.1
+
+[spawn_mages]
+faction = mage
+squads = mage_novice, mage_advanced, mage_veteran
+num = 2.5
+
+[spawn_thalmor]
+faction = thalmor
+squads = thalmor_novice, thalmor_advanced, thalmor_veteran
+num = 1.5
+
+[spawn_caravan]
+faction = caravan
+squads = caravan_novice, caravan_advanced, caravan_veteran
+num = 0.5
+
+[spawn_caravan_town]
+faction = caravan
+squads = caravan_novice, caravan_advanced
+num = 0.35
+
+[spawn_vigilant]
+faction = vigilant
+squads = vigilant_novice, vigilant_advanced, vigilant_veteran
+num = 2.5
+
+[spawn_dawnguard]
+faction = dawnguard
+squads = dawnguard_novice, dawnguard_advanced
+num = 1.5
+
+[spawn_silverhand]
+faction = silverhand
+squads = silverhand_novice, silverhand_advanced, silverhand_veteran
+num = 2
+
+; monster lairs
+[spawn_draugr]
+faction = draugr
+squads = draugr_novice, draugr_advanced, draugr_veteran
+num = 0.7
+
+[spawn_falmer]
+faction = falmer
+squads = falmer_novice, falmer_advanced, falmer_veteran, falmer_shamans, falmer_chaurus, falmer_chaurus_hunters
+num = 1
+
+[spawn_falmer_ruin]
+faction = falmer
+squads = falmer_novice, falmer_advanced
+num = 0.6
+
+[spawn_wildlife_den]
+faction = wildlife
+squads = wildlife_novice, wildlife_advanced, wildlife_veteran
+num = 1
+
+[spawn_wildlife_cave]
+faction = wildlife
+squads = wildlife_skeevers, wildlife_skeevers, wildlife_novice, wildlife_advanced, wildlife_veteran
+num = 0.25
+
+[spawn_troll_cave]
+faction = troll
+squads = troll_advanced, troll_advanced, troll_veteran
+num = 0.125
+
+[spawn_spriggan]
+faction = spriggan
+squads = spriggan_advanced, spriggan_veteran
+num = 1
+
+[spawn_zombie_lair]
+faction = zombie
+squads = zombie_novice, zombie_advanced, zombie_risen
+num = 0.6
+
+[spawn_zombie_wreck]
+faction = zombie
+squads = zombie_novice, zombie_advanced
+num = 0.5
+
+; M4b (docs/MUTANTS.md 2.1)
+[spawn_horker_wreck]
+faction = wildlife
+squads = wildlife_horkers
+num = 0.4
+
+[spawn_spirit]
+faction = spirit
+squads = spirit_ghosts, spirit_wispmother
+num = 0.25
+
+[spawn_dwemer]
+faction = dwemer
+squads = dwemer_novice, dwemer_advanced, dwemer_veteran
+num = 1
+
+[spawn_dwemer_ruin]
+faction = dwemer
+squads = dwemer_novice, dwemer_advanced
+num = 0.5
+
+[spawn_giant]
+faction = giant
+squads = giant_herd
+num = 1
+
+[spawn_hagraven]
+faction = hagraven
+squads = hagraven_coven
+num = 1
+
+[spawn_hound]
+faction = hound
+squads = hound_novice, hound_advanced
+num = 0.7
+
+[spawn_werewolf]
+faction = werebeast
+squads = werebeast_advanced, werebeast_veteran
+num = 1
+
+[spawn_werebear]
+faction = werebeast
+squads = werebeast_bears
+num = 1
+
+[spawn_riekling]
+faction = riekling
+squads = riekling_novice, riekling_riders, riekling_boars
+num = 1
+
+[spawn_ashspawn]
+faction = zombie
+squads = zombie_ashspawn, zombie_ashspawn_band
+num = 1
+
+; ---------------------------------------------------------------- keyword overlays (location keyword FormID, Skyrim.esm)
+[keyword_props]
+130F2 = kw_nordic_ruin       ; LocSetNordicRuin
+130E2 = kw_nordic_ruin       ; LocTypeDraugrCrypt (same overlay: applied once)
+130E4 = kw_falmer_hive       ; LocTypeFalmerHive
+130F0 = kw_dwarven_ruin      ; LocSetDwarvenRuin
+130DE = kw_animal_den        ; LocTypeAnimalDen
+130EF = kw_cave              ; LocSetCave
+100819 = kw_cave             ; LocSetCaveIce
+130EA = kw_spriggan_grove    ; LocTypeSprigganGrove
+130EC = kw_warlock_lair      ; LocTypeWarlockLair (zombies: the necromancers' work)
+1929F = kw_shipwreck         ; LocTypeShipwreck (zombies: the drowned; horkers on the shore)
+130E5 = kw_giant_camp        ; LocTypeGiantCamp
+130E6 = kw_hagraven_nest     ; LocTypeHagravenNest
+130E3 = kw_dwemer            ; LocTypeDwarvenAutomatons
+130EB = kw_vampire_lair      ; LocTypeVampireLair (death hounds)
+130ED = kw_werewolf_lair     ; LocTypeWerewolfLair
+402C96A = kw_werebear_lair   ; LocTypeWerebearLair (Dragonborn; DLC keywords are stored as 04xxxxxx)
+402972E = kw_riekling_camp   ; DLC2LocTypeRieklingCamp (Dragonborn)
+402C969 = kw_ash_spawn       ; DLC2LocTypeAshSpawn (Dragonborn)
+
+[kw_nordic_ruin]
+lair = 1
+monster_population = 1
+respawn_idle = 24
+draugr = 2
+spirit = 1
+max_population = 1
+respawn = draugr, spirit
+
+[kw_falmer_hive]
+lair = 1
+monster_population = 1
+respawn_idle = 24
+falmer = 2
+max_population = 1
+respawn = falmer
+
+[kw_dwarven_ruin]
+lair = 1
+monster_population = 1
+respawn_idle = 24
+falmer = 2
+dwemer = 1
+max_population = 1
+respawn = falmer_ruin, dwemer_ruin
+
+[kw_animal_den]
+lair = 1
+monster_population = 1
+respawn_idle = 24
+wildlife = 2
+hunter = 1
+max_population = 1
+respawn = wildlife_den
+
+[kw_cave]
+lair = 1
+monster_population = 1
+wildlife = 1
+troll = 1
+hunter = 1
+respawn = wildlife_cave, troll_cave
+
+[kw_spriggan_grove]
+lair = 1
+monster_population = 1
+respawn_idle = 24
+spriggan = 2
+max_population = 1
+respawn = spriggan
+
+[kw_warlock_lair]
+lair = 1
+monster_population = 1
+respawn_idle = 24
+zombie = 2
+max_population = 1
+respawn = zombie_lair
+
+[kw_shipwreck]
+lair = 1
+monster_population = 1
+respawn_idle = 24
+zombie = 2
+wildlife = 1
+max_population = 1
+respawn = zombie_wreck, horker_wreck
+
+[kw_giant_camp]
+lair = 1
+monster_population = 1
+respawn_idle = 24
+giant = 2
+max_population = 1
+respawn = giant
+
+[kw_hagraven_nest]
+lair = 1
+monster_population = 1
+respawn_idle = 24
+hagraven = 2
+max_population = 1
+respawn = hagraven
+
+[kw_dwemer]
+lair = 1
+monster_population = 1
+respawn_idle = 24
+dwemer = 2
+max_population = 1
+respawn = dwemer
+
+[kw_vampire_lair]
+lair = 1
+monster_population = 1
+respawn_idle = 24
+hound = 2
+max_population = 1
+respawn = hound
+
+[kw_werewolf_lair]
+lair = 1
+monster_population = 1
+respawn_idle = 24
+werebeast = 2
+max_population = 1
+respawn = werewolf
+
+[kw_werebear_lair]
+lair = 1
+monster_population = 1
+respawn_idle = 24
+werebeast = 2
+max_population = 1
+respawn = werebear
+
+[kw_riekling_camp]
+lair = 1
+monster_population = 1
+respawn_idle = 24
+riekling = 2
+max_population = 1
+respawn = riekling
+
+[kw_ash_spawn]
+lair = 1
+monster_population = 1
+respawn_idle = 24
+zombie = 2
+max_population = 1
+respawn = ashspawn
+
+; ---------------------------------------------------------------- places
+[p_wild]:default
+territory = 1
+all = 1
+monster = 1
+max_population = 1
+wanderer = 1
+caravan = 1
+hunter = 1
+imperial = 1
+stormcloak = 1
+bandit = 1
+
+[p_city]:default
+base = 1
+resource = 1
+surge = 1
+max_population = 4
+arrive_dist = 800
+default_faction = hold
+owner = 3
+wanderer = 1
+hunter = 1
+mercenary = 1
+mage = 1
+caravan = 1
+respawn = owner_garrison, wanderers, mercs
+
+[p_town]:default
+base = 1
+surge = 1
+max_population = 2
+default_faction = hold
+owner = 2
+wanderer = 1
+hunter = 1
+mercenary = 1
+mage = 1
+bandit = 1
+forsworn = 1
+silverhand = 1
+caravan = 2
+respawn = owner_patrol, wanderers_town, hunters_town, mercs_town, mages_town, caravan_town
+
+[p_inn]:default
+territory = 1
+resource = 1
+surge = 1
+max_population = 2
+wanderer = 2
+mercenary = 2
+hunter = 1
+caravan = 3
+respawn = wanderers, hunters, caravan
+
+[p_farm]:default
+territory = 1
+max_population = 1
+wanderer = 1
+hunter = 2
+bandit = 1
+forsworn = 1
+silverhand = 1
+caravan = 1
+respawn = hunters
+
+[p_fort]:default
+base = 1
+territory = 1
+surge = 1
+max_population = 3
+arrive_dist = 900
+default_faction = hold
+faction_controlled = true
+owner = 2
+imperial = 2
+stormcloak = 2
+thalmor = 1
+bandit = 1
+forsworn = 1
+mercenary = 1
+respawn = garrison, patrol
+
+[p_milcamp]:default
+base = 1
+territory = 1
+max_population = 2
+default_faction = hold
+faction_controlled = true
+owner = 2
+imperial = 2
+stormcloak = 2
+bandit = 1
+mercenary = 1
+respawn = garrison
+
+[p_banditcamp]:default
+territory = 1
+max_population = 3
+default_faction = bandit
+owner = 3
+bandit = 1
+imperial = 1
+stormcloak = 1
+thalmor = 1
+mercenary = 1
+hunter = 1
+wanderer = 1
+vigilant = 1
+respawn = bandit_camp
+
+[p_forswornccamp]:default
+territory = 1
+max_population = 3
+default_faction = forsworn
+owner = 3
+forsworn = 1
+imperial = 1
+stormcloak = 1
+thalmor = 1
+hunter = 1
+respawn = forsworn
+
+[p_warlock]:default
+territory = 1
+resource = 1
+max_population = 2
+default_faction = necromancer
+owner = 3
+necromancer = 1
+mage = 1
+vigilant = 1
+dawnguard = 1
+wanderer = 1
+mercenary = 1
+respawn = necromancer
+
+[p_vamp]:default
+territory = 1
+max_population = 2
+default_faction = vampire
+owner = 3
+vampire = 1
+dawnguard = 2
+vigilant = 1
+wanderer = 1
+hunter = 1
+mercenary = 1
+respawn = vampire
+
+[p_dungeon]:default
+territory = 1
+resource = 1
+surge = 1
+max_population = 2
+wanderer = 2
+mercenary = 2
+hunter = 1
+bandit = 1
+mage = 1
+necromancer = 1
+vigilant = 1
+respawn = bandit_den
+
+[p_crypt]:default
+territory = 1
+resource = 2
+surge = 1
+max_population = 2
+wanderer = 2
+mercenary = 2
+necromancer = 2
+vigilant = 1
+mage = 1
+respawn = necromancer_rare
+
+[p_ruin]:default
+territory = 1
+resource = 1
+max_population = 2
+wanderer = 2
+mage = 2
+mercenary = 1
+
+[p_mine]:default
+territory = 1
+resource = 1
+max_population = 2
+bandit = 2
+wanderer = 1
+mercenary = 1
+respawn = bandit_den
+
+[p_animalden]:default
+territory = 1
+max_population = 1
+hunter = 2
+wanderer = 1
+
+[p_dpl]:default
+resource = 1
+max_population = 1
+wanderer = 1
+mercenary = 1
+mage = 1
+necromancer = 1
+
+[p_shipwreck]:default
+territory = 1
+max_population = 1
+wanderer = 1
+hunter = 1
+bandit = 1
+
+[p_orc]:default
+base = 1
+max_population = 2
+wanderer = 1
+mercenary = 1
+
+; ---------------------------------------------------------------- specific locations (Skyrim.esm FormIDs)
+; Bandit-held forts (vanilla bandits live there)
+[loc_1917D]:p_fort          ; Fort Greymoor
+default_faction = bandit
+respawn = bandit_camp, patrol
+
+[loc_19183]:p_fort          ; Fort Neugrad
+default_faction = bandit
+respawn = bandit_camp, patrol
+
+; Imperial-held capitals also host Thalmor
+[loc_18A5A]:p_city          ; Solitude
+respawn = owner_garrison, wanderers, mercs, thalmor
+thalmor = 1
+
+[loc_18A59]:p_city          ; Markarth
+respawn = owner_garrison, wanderers, mercs, thalmor
+thalmor = 1
+
+[loc_18A56]:p_city          ; Whiterun
+respawn = owner_garrison, wanderers, mercs, thalmor
+thalmor = 1
+
+; Winterhold College (mages)
+[loc_76F3A]:p_town
+raidable = false
+default_faction = mage
+owner = 3
+mage = 1
+respawn = mages
+
+; Vigilants of Stendarr
+[loc_C342D]:p_town         ; Hall of the Vigilant
+raidable = false
+default_faction = vigilant
+owner = 3
+vigilant = 1
+respawn = vigilant, dawnguard
+
+[loc_108A5A]:p_town        ; Stendarr's Beacon
+raidable = false
+default_faction = vigilant
+owner = 3
+vigilant = 1
+respawn = vigilant, dawnguard
+
+; Silver Hand fort
+[loc_1916E]:p_fort         ; Driftshade Refuge
+default_faction = silverhand
+respawn = silverhand
+silverhand = 2

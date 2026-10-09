@@ -1,0 +1,679 @@
+; Squad descriptions (Anomaly squad_descr.ltx dialect).
+; faction = id, tier = novice|advanced|veteran, npc_in_squad = min, max, level_offset = min, max (relative to the player),
+; roles = role:weight list (melee, heavy, archer, mage, spellsword, leader), common = scaled by the population factor.
+
+[bandit_novice]
+faction = bandit
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -4, 0
+roles = melee:3, heavy:1, archer:2, mage:0.4, leader:1
+common = true
+
+[bandit_advanced]
+faction = bandit
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = -1, 3
+roles = melee:3, heavy:1, archer:2, mage:0.4, leader:1
+common = true
+
+[bandit_veteran]
+faction = bandit
+tier = veteran
+npc_in_squad = 3, 5
+level_offset = 2, 7
+roles = melee:3, heavy:1, archer:2, mage:0.4, leader:1
+common = true
+
+[forsworn_novice]
+faction = forsworn
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -4, 0
+roles = melee:3, archer:2, mage:1, leader:1
+common = true
+
+[forsworn_advanced]
+faction = forsworn
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = -1, 3
+roles = melee:3, archer:2, mage:1, leader:1
+common = true
+
+[forsworn_veteran]
+faction = forsworn
+tier = veteran
+npc_in_squad = 3, 5
+level_offset = 2, 7
+roles = melee:3, archer:2, mage:1, leader:1
+common = true
+
+[imperial_novice]
+faction = imperial
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -4, 0
+roles = melee:3, heavy:2, archer:1.5, mage:0.3, leader:1
+common = true
+
+[imperial_advanced]
+faction = imperial
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = -1, 3
+roles = melee:3, heavy:2, archer:1.5, mage:0.3, leader:1
+common = true
+
+[imperial_veteran]
+faction = imperial
+tier = veteran
+npc_in_squad = 3, 5
+level_offset = 2, 7
+roles = melee:3, heavy:2, archer:1.5, mage:0.3, leader:1
+common = true
+
+[stormcloak_novice]
+faction = stormcloak
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -4, 0
+roles = melee:3, heavy:2, archer:1.5, mage:0.2, leader:1
+common = true
+
+[stormcloak_advanced]
+faction = stormcloak
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = -1, 3
+roles = melee:3, heavy:2, archer:1.5, mage:0.2, leader:1
+common = true
+
+[stormcloak_veteran]
+faction = stormcloak
+tier = veteran
+npc_in_squad = 3, 5
+level_offset = 2, 7
+roles = melee:3, heavy:2, archer:1.5, mage:0.2, leader:1
+common = true
+
+[thalmor_novice]
+faction = thalmor
+tier = novice
+npc_in_squad = 2, 2
+level_offset = -4, 0
+roles = mage:3, spellsword:2, heavy:1, archer:1, leader:1
+common = true
+
+[thalmor_advanced]
+faction = thalmor
+tier = advanced
+npc_in_squad = 2, 3
+level_offset = -1, 3
+roles = mage:3, spellsword:2, heavy:1, archer:1, leader:1
+common = true
+
+[thalmor_veteran]
+faction = thalmor
+tier = veteran
+npc_in_squad = 2, 4
+level_offset = 2, 7
+roles = mage:3, spellsword:2, heavy:1, archer:1, leader:1
+common = true
+
+[wanderer_novice]
+faction = wanderer
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -4, 0
+roles = melee:2, archer:2, mage:1, spellsword:1, heavy:0.5, leader:1
+common = true
+
+[wanderer_advanced]
+faction = wanderer
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = -1, 3
+roles = melee:2, archer:2, mage:1, spellsword:1, heavy:0.5, leader:1
+common = true
+
+[wanderer_veteran]
+faction = wanderer
+tier = veteran
+npc_in_squad = 3, 4
+level_offset = 2, 7
+roles = melee:2, archer:2, mage:1, spellsword:1, heavy:0.5, leader:1
+common = true
+
+[hunter_novice]
+faction = hunter
+tier = novice
+npc_in_squad = 1, 2
+level_offset = -4, 0
+roles = archer:4, melee:1, leader:1
+common = true
+
+[hunter_advanced]
+faction = hunter
+tier = advanced
+npc_in_squad = 1, 3
+level_offset = -1, 3
+roles = archer:4, melee:1, leader:1
+common = true
+
+[hunter_veteran]
+faction = hunter
+tier = veteran
+npc_in_squad = 1, 3
+level_offset = 2, 7
+roles = archer:4, melee:1, leader:1
+common = true
+
+[mercenary_novice]
+faction = mercenary
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -4, 0
+roles = melee:3, heavy:1, archer:1.5, spellsword:1, leader:1
+common = true
+
+[mercenary_advanced]
+faction = mercenary
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = -1, 3
+roles = melee:3, heavy:1, archer:1.5, spellsword:1, leader:1
+common = true
+
+[mercenary_veteran]
+faction = mercenary
+tier = veteran
+npc_in_squad = 3, 5
+level_offset = 2, 7
+roles = melee:3, heavy:1, archer:1.5, spellsword:1, leader:1
+common = true
+
+[mage_novice]
+faction = mage
+tier = novice
+npc_in_squad = 2, 2
+level_offset = -4, 0
+roles = mage:4, spellsword:1, leader:1
+common = true
+
+[mage_advanced]
+faction = mage
+tier = advanced
+npc_in_squad = 2, 3
+level_offset = -1, 3
+roles = mage:4, spellsword:1, leader:1
+common = true
+
+[mage_veteran]
+faction = mage
+tier = veteran
+npc_in_squad = 2, 4
+level_offset = 2, 7
+roles = mage:4, spellsword:1, leader:1
+common = true
+
+[necromancer_novice]
+faction = necromancer
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -4, 0
+roles = mage:4, melee:1, leader:1
+common = true
+
+[necromancer_advanced]
+faction = necromancer
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = -1, 3
+roles = mage:4, melee:1, leader:1
+common = true
+
+[necromancer_veteran]
+faction = necromancer
+tier = veteran
+npc_in_squad = 3, 4
+level_offset = 2, 7
+roles = mage:4, melee:1, leader:1
+common = true
+
+[vampire_novice]
+faction = vampire
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -4, 0
+roles = spellsword:2, melee:2, mage:2, leader:1
+common = true
+
+[vampire_advanced]
+faction = vampire
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = -1, 3
+roles = spellsword:2, melee:2, mage:2, leader:1
+common = true
+
+[vampire_veteran]
+faction = vampire
+tier = veteran
+npc_in_squad = 3, 4
+level_offset = 2, 7
+roles = spellsword:2, melee:2, mage:2, leader:1
+common = true
+
+[dawnguard_novice]
+faction = dawnguard
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -4, 0
+roles = archer:3, heavy:2, melee:2, leader:1
+common = true
+
+[dawnguard_advanced]
+faction = dawnguard
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = -1, 3
+roles = archer:3, heavy:2, melee:2, leader:1
+common = true
+
+[dawnguard_veteran]
+faction = dawnguard
+tier = veteran
+npc_in_squad = 3, 4
+level_offset = 2, 7
+roles = archer:3, heavy:2, melee:2, leader:1
+common = true
+
+[silverhand_novice]
+faction = silverhand
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -4, 0
+roles = melee:3, heavy:1, archer:1, leader:1
+common = true
+
+[silverhand_advanced]
+faction = silverhand
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = -1, 3
+roles = melee:3, heavy:1, archer:1, leader:1
+common = true
+
+[silverhand_veteran]
+faction = silverhand
+tier = veteran
+npc_in_squad = 3, 5
+level_offset = 2, 7
+roles = melee:3, heavy:1, archer:1, leader:1
+common = true
+
+[vigilant_novice]
+faction = vigilant
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -4, 0
+roles = melee:3, heavy:2, mage:1, leader:1
+common = true
+
+[vigilant_advanced]
+faction = vigilant
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = -1, 3
+roles = melee:3, heavy:2, mage:1, leader:1
+common = true
+
+[vigilant_veteran]
+faction = vigilant
+tier = veteran
+npc_in_squad = 3, 4
+level_offset = 2, 7
+roles = melee:3, heavy:2, mage:1, leader:1
+common = true
+
+[caravan_novice]
+faction = caravan
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -4, 0
+roles = melee:2, archer:1.5, heavy:0.3, leader:1
+common = true
+
+[caravan_advanced]
+faction = caravan
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = -1, 3
+roles = melee:2, archer:1.5, heavy:0.3, leader:1
+common = true
+
+[caravan_veteran]
+faction = caravan
+tier = veteran
+npc_in_squad = 3, 4
+level_offset = 2, 7
+roles = melee:2, archer:1.5, heavy:0.3, leader:1
+common = true
+
+; ---------------------------------------------------------------- monsters (docs/MUTANTS.md)
+; creatures = id:weight list from monsters.ltx; leader = the first member's creature. roles do not apply.
+[wildlife_novice]
+faction = wildlife
+tier = novice
+npc_in_squad = 2, 4
+level_offset = -4, 0
+creatures = wolf:1
+common = true
+
+[wildlife_advanced]
+faction = wildlife
+tier = advanced
+npc_in_squad = 4, 6
+level_offset = -1, 3
+creatures = wolf:1
+leader = wolf_alpha
+common = true
+
+[wildlife_skeevers]
+faction = wildlife
+tier = novice
+npc_in_squad = 3, 5
+level_offset = -4, 0
+creatures = skeever:1
+common = true
+
+[wildlife_veteran]
+faction = wildlife
+tier = veteran
+npc_in_squad = 1, 2
+level_offset = 0, 5
+creatures = sabrecat:1, bear:1
+common = true
+
+[draugr_novice]
+faction = draugr
+tier = novice
+npc_in_squad = 2, 2
+level_offset = -4, 0
+creatures = draugr:3, draugr_archer:1
+common = true
+
+[draugr_advanced]
+faction = draugr
+tier = advanced
+npc_in_squad = 2, 3
+level_offset = -1, 3
+creatures = draugr:3, draugr_archer:1.5, draugr_warlock:1
+common = true
+
+[draugr_veteran]
+faction = draugr
+tier = veteran
+npc_in_squad = 3, 4
+level_offset = 2, 6
+creatures = draugr:3, draugr_archer:1.5, draugr_warlock:1
+leader = draugr_boss
+common = true
+
+[falmer_novice]
+faction = falmer
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -4, 0
+creatures = falmer:3, falmer_archer:1.5
+common = true
+
+[falmer_advanced]
+faction = falmer
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = -1, 3
+creatures = falmer:3, falmer_archer:1.5, falmer_shaman:1
+common = true
+
+[falmer_veteran]
+faction = falmer
+tier = veteran
+npc_in_squad = 3, 5
+level_offset = 2, 6
+creatures = falmer:3, falmer_archer:1.5, falmer_shaman:1
+leader = falmer_boss
+common = true
+
+[troll_advanced]
+faction = troll
+tier = advanced
+npc_in_squad = 1, 1
+level_offset = 0, 3
+creatures = troll:2, troll_frost:1
+common = true
+
+[troll_veteran]
+faction = troll
+tier = veteran
+npc_in_squad = 1, 2
+level_offset = 2, 6
+creatures = troll_frost:1
+common = true
+
+[spriggan_advanced]
+faction = spriggan
+tier = advanced
+npc_in_squad = 1, 2
+level_offset = -1, 3
+creatures = spriggan:1
+common = true
+
+[spriggan_veteran]
+faction = spriggan
+tier = veteran
+npc_in_squad = 2, 3
+level_offset = 2, 6
+creatures = spriggan:1
+common = true
+
+[zombie_novice]
+faction = zombie
+tier = novice
+npc_in_squad = 3, 5
+level_offset = -4, 0
+creatures = zombie:1
+common = true
+
+[zombie_advanced]
+faction = zombie
+tier = advanced
+npc_in_squad = 4, 6
+level_offset = -1, 3
+creatures = zombie:1
+common = true
+
+; ---- M4b: the rest of the Anomaly -> Skyrim mapping (docs/MUTANTS.md 2.1)
+
+[wildlife_horkers]
+faction = wildlife
+tier = novice
+npc_in_squad = 2, 4
+level_offset = -3, 1
+creatures = horker:1
+common = true
+
+[hound_novice]
+faction = hound
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -3, 1
+creatures = deathhound:1
+common = true
+
+[hound_advanced]
+faction = hound
+tier = advanced
+npc_in_squad = 3, 5
+level_offset = -1, 3
+creatures = deathhound:1
+common = true
+
+[werebeast_advanced]
+faction = werebeast
+tier = advanced
+npc_in_squad = 1, 2
+level_offset = 0, 4
+creatures = werewolf:1
+common = true
+
+[werebeast_veteran]
+faction = werebeast
+tier = veteran
+npc_in_squad = 2, 3
+level_offset = 2, 6
+creatures = werewolf:1
+leader = werewolf_boss
+common = true
+
+[werebeast_bears]
+faction = werebeast
+tier = veteran
+npc_in_squad = 1, 2
+level_offset = 1, 5
+creatures = werebear:1
+common = true
+
+[riekling_novice]
+faction = riekling
+tier = novice
+npc_in_squad = 3, 5
+level_offset = -4, 0
+creatures = riekling:2, riekling_archer:1
+common = true
+
+[riekling_riders]
+faction = riekling
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = -1, 3
+creatures = riekling_rider:2, riekling:1, riekling_archer:1
+common = true
+
+[riekling_boars]
+faction = riekling
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -3, 1
+creatures = bristleback:1
+common = true
+
+[falmer_shamans]
+faction = falmer
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = 0, 4
+creatures = falmer_shaman:3, chaurus:1
+common = true
+
+[falmer_chaurus]
+faction = falmer
+tier = novice
+npc_in_squad = 2, 4
+level_offset = -3, 1
+creatures = chaurus:1
+common = true
+
+[falmer_chaurus_hunters]
+faction = falmer
+tier = advanced
+npc_in_squad = 2, 4
+level_offset = 0, 4
+creatures = chaurus:2, chaurus_hunter:1
+common = true
+
+[zombie_risen]
+faction = zombie
+tier = advanced
+npc_in_squad = 4, 6
+level_offset = 0, 4
+creatures = zombie:1
+leader = necromancer
+common = true
+
+[zombie_ashspawn]
+faction = zombie
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -2, 2
+creatures = ashspawn:1
+common = true
+
+[zombie_ashspawn_band]
+faction = zombie
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = 0, 4
+creatures = ashspawn:1
+common = true
+
+[spirit_ghosts]
+faction = spirit
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -2, 2
+creatures = ghost:1
+common = true
+
+[spirit_wispmother]
+faction = spirit
+tier = advanced
+npc_in_squad = 1, 2
+level_offset = 0, 4
+creatures = wispmother:1, ghost:1
+leader = wispmother
+common = true
+
+[hagraven_coven]
+faction = hagraven
+tier = advanced
+npc_in_squad = 1, 2
+level_offset = 0, 4
+creatures = hagraven:1
+common = true
+
+[giant_herd]
+faction = giant
+tier = veteran
+npc_in_squad = 2, 3
+level_offset = 0, 4
+creatures = mammoth:1
+leader = giant
+common = true
+
+[dwemer_novice]
+faction = dwemer
+tier = novice
+npc_in_squad = 3, 4
+level_offset = -3, 1
+creatures = dwarven_spider:1
+common = true
+
+[dwemer_advanced]
+faction = dwemer
+tier = advanced
+npc_in_squad = 2, 3
+level_offset = 0, 4
+creatures = dwarven_sphere:2, dwarven_spider:1
+common = true
+
+[dwemer_veteran]
+faction = dwemer
+tier = veteran
+npc_in_squad = 2, 3
+level_offset = 2, 6
+creatures = dwarven_sphere:1
+leader = dwarven_centurion
+common = true

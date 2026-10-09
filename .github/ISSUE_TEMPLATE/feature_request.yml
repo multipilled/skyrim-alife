@@ -1,0 +1,15 @@
+name: Feature request
+description: An idea for the simulation, encounters, factions or tuning
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What should happen in game? If Anomaly does it, say how it works there.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it matters for play
