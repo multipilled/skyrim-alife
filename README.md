@@ -4,11 +4,14 @@ A persistent, simulated world for Skyrim Special Edition, after STALKER Anomaly'
 live, travel, trade, fight, loot, level up and die all over the map whether you are watching or not, and meet you on
 the road with a reason to be there and an opinion of you. An SKSE plugin; no scripts run on a timer.
 
-![A bandit squad names a toll in ordinary Skyrim dialogue](docs/images/toll-dialogue.jpg)
+**Progress: about 80% of the 1.0 goal** (Anomaly-standard A-Life across all of Skyrim SE). Playable now; see the
+[roadmap](#status-and-roadmap) for what is still open.
+
+![A squad on the road, coming your way](docs/images/squad-on-the-road.jpg)
 
 | | |
 |---|---|
-| ![A Khajiit caravan on the road](docs/images/khajiit-caravan.jpg) | ![Bartering over what the caravan really carries](docs/images/caravan-barter.jpg) |
+| ![A bandit squad closes in for an ambush](docs/images/bandit-ambush.jpg) | ![Trading with a Khajiit caravan over its real stock](docs/images/caravan-trade.jpg) |
 
 ## Features
 
@@ -73,10 +76,29 @@ FaceGen and the pool actors' plugin);
 
 ## Status and roadmap
 
-Version 2.x, in active development. Done: the A-Life brain across all of Skyrim and Solstheim, factions and standing,
-dialogue, mutants and monsters with lairs, tasks, living news, long-run stability. Next: companions and recruiting,
-dragons as A-Life actors, wounded and surrender, more task types (escort, defend, rescue, hunts), stashes, camp life,
-and a polished installable package. See [CONTRIBUTING.md](CONTRIBUTING.md) to help.
+Version 2.x. **Overall progress: about 80%** (82 of 102 weighted points). Everything marked done is in the current
+build and was checked in game.
+
+| Milestone | Weight | Status |
+|---|---|---|
+| Core brain: LTX configs, factions and relations, smart terrains, targeting, respawn, news, headless harness | 15 | done |
+| Plugin integration: all of Tamriel as one graph, online/offline, co-save, MCM, debug lab | 10 | done |
+| 2.0 content: 15 factions, ~200 squads, standing, real dialogue, barter, caravans, Solstheim, scavenging | 15 | done |
+| Play-test and stability fixes | 8 | done |
+| Mutants and monsters with lairs (wildlife, draugr, falmer, zombies) | 12 | done |
+| Remaining monsters (death hounds, rieklings, werewolves, hagravens, giants, chaurus, Dwemer, ...) | 4 | done |
+| Long-run balance and stability (online radius, 120-day sim, save/load cycles) | 5 | done |
+| Tasks from squad leaders (bounty, assault, delivery, fetch) | 11 | done |
+| Living news and lair hunters | 2 | done |
+| Companions and recruiting | 7 | in progress |
+| Dragons as A-Life actors (MCM toggle) | 4 | open |
+| Wounded, help, finish, surrender | 5 | open |
+| More tasks: escort, defend, rescue, recover, hunts and rankings | 5 | open |
+| Stashes | 3 | open |
+| Camp life | 1 | open |
+| Installable package (full MCM, clean release zip, fresh-profile install test) | 5 | open |
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) to help.
 
 ## Credits
 

@@ -15,3 +15,5 @@ gamedata/
 out/
 extracted/
 .claude/worktrees/
+__pycache__/
+*.pyc
