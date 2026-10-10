@@ -37,6 +37,11 @@ without anyone having been refused.
   squad) from inside the dialogue event hung the game.
 - Trade: after the conversation, the console's `ShowBarterMenu` runs on the speaker. It works on any actor and trades over its
   inventory and gold, which is why a squad's pack is real (`Economy`) and why trade is not limited to merchants.
+- **Find vanilla topics by their 4-character subtype code (SNAM), not by a library's subtype names.** Mutagen 0.51.5 mislabels
+  many combat and crime topics: Skyrim.esm 013EE4 is named "PowerAttack" but is DETH (death), 03E248 is named "Hit" but is
+  BLOC (block). Lines wired by the name land on the wrong topic and the real one stays silent. `DialogueGeneric` also holds a
+  generic Bleedout topic (039B95, code BLED) for bleedout lines. Around 190 vanilla generic lines (combat barks, crime and
+  stealing comments) can fire for any custom NPC, so check which ones pass before adding your own.
 
 ## Testing without a keyboard
 
