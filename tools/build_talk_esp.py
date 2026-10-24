@@ -2,7 +2,7 @@
 
 Every conversation with a squad is real Skyrim dialogue: the squad's opening line (a HELO "Hello" topic) and the player's choices
 (top-level topics) are selected by conditions on the speaker's faction and on a global the plugin sets for the squad the player is
-looking at (ALifeTalkMode: 1 toll, 2 challenge, 3 greeting). The plugin learns what the player chose from the TESTopicInfoEvent of
+looking at (ALifeTalkMode: 1 toll, 2 challenge, 3 greeting, 4 companion, 5 wounded, 6 yielded). The plugin learns what the player chose from the TESTopicInfoEvent of
 the chosen response (talk.ltx maps each response FormID to an action), so no Papyrus fragments are needed.
 
 The topics belong to the vanilla "Generic dialogue" quest (DialogueGeneric, Skyrim.esm 0x13EB3), the way the Dawnguard and Dragonborn
@@ -16,9 +16,12 @@ All text is original. Layout follows vanilla Skyrim.esm records (DLBR / DIAL / I
 usage: python build_talk_esp.py [out.esp] [out_talk.ltx]
 """
 import struct, sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import check_next_id, esp
 
 FACTIONS = ["bandit", "forsworn", "imperial", "stormcloak", "thalmor", "wanderer", "hunter", "mercenary", "mage",
-            "necromancer", "vampire", "dawnguard", "silverhand", "vigilant", "caravan"]   # must match enum Faction order in Core.h
+            "necromancer", "vampire", "dawnguard", "silverhand", "vigilant", "caravan",
+            "skaal", "redoran", "reaver"]   # must match enum Faction order in Core.h
 MASTERS = ["Skyrim.esm", "Update.esm", "Dawnguard.esm", "ALifeFactions.esp"]
 OWN = len(MASTERS) << 24
 FACTIONS_MASTER = 3 << 24
@@ -34,8 +37,10 @@ INFO0 = 0x900                             # first response FormID
 M_TOLL, M_CHAL, M_GREET = 1, 2, 3
 
 # --- jobs (docs/TASKS.md): two more globals, the sealed parcel, the ALifeTasks quest (journal + markers), the job topics
-GLOBAL_OFFER, GLOBAL_STATE = 0x802, 0x803   # ALifeTaskOffer (0 none, 1 bounty, 2 assault, 3 delivery, 4 fetch), ALifeTaskState
+GLOBAL_OFFER, GLOBAL_STATE = 0x802, 0x803   # ALifeTaskOffer (0 none, 1 bounty, 2 assault, 3 delivery, 4 fetch, 5 escort, 6 defend, 7 rescue, 8 recover, 9 hunt), ALifeTaskState
 PARCEL, TASK_QUEST = 0x805, 0x806
+STASH_NOTE, STASH_QUEST = 0x81E, 0x81F    # M5f (docs/STASHES.md): the stash note MISC, the ALifeStashes marker quest
+STASH_SLOTS = 8                           # objective i, alias Stash<i>
 TASK_SLOTS = 4                            # objectives 10*s (work, alias Target<s>) and 10*s+1 (return, alias Giver<s>)
 TBRANCH0, TTOPIC0, TINFO0 = 0x840, 0x860, 0xA00
 OP_GT = 0x40
@@ -44,7 +49,14 @@ JOB_PITCH = {   # what a leader says when asked for work, by offer type; the spe
     2: ["Enemies have dug in not far from here. Clear them out and you'll be paid.", "There's a nest of trouble nearby. Burn it out and come back to me."],
     3: ["I need a parcel carried to someone. Sealed, and it stays that way.", "Take this to a friend of ours. Don't open it, and don't lose it."],
     4: ["We're short on supplies. Bring me what I need and I'll pay well.", "I've a list of things we need. Fill it and you won't regret it."],
+    # M5e (docs/TASKS.md section 8): escort, defend, rescue, recover, top-10 hunt
+    5: ["We're moving on, and the roads aren't safe. Walk with us and you'll be paid when we get there.", "Could use another blade on the road. See us there safe and the coin is yours."],
+    6: ["They'll come for this place soon. Stand with us when they do.", "We've had word of an attack. Help us hold here and you'll be paid."],
+    7: ["One of ours was taken. Get them out alive and bring them back to me.", "We lost someone out there. Alive, I hope. Find them and bring them home."],
+    8: ["One of ours never came back. Find the body and bring me the satchel they carried.", "There's a satchel on a dead friend of ours out there. I want it back."],
+    9: ["There are people out there more dangerous than the rest. I want them gone, one by one.", "I keep a list of the worst of them. Work your way up it and I'll make it worth your while."],
 }
+SATCHEL = 0x80D                           # recover: the satchel on the body (0x80E-0x80F kept free for M5e)
 # (key, prompt, ALifeTaskState it needs (None: a child of "Got any work?"), answers, action in talk.ltx)
 JOB_TOPICS = [
     ("accept", "I'll do it.", None, ["Good. I'll mark it on your map.", "Then we have a deal. Don't keep me waiting."], "accept"),
@@ -54,10 +66,61 @@ JOB_TOPICS = [
     ("abandon", "I can't finish that job.", 1, ["Then I'll find someone who can.", "Pity. I thought you were up to it."], "abandon"),
 ]
 
+# --- companions (docs/COMPANIONS.md): six more globals, a fourth talk mode (talking to your own companion), recruit + order topics
+GLOBAL_COMP_OFFER, GLOBAL_COMP_STATE = 0x807, 0x808   # ALifeCompOffer (0 none, 1 free, 2 paid, 3 no room, 4 unwilling), ALifeCompState (1 follow, 2 wait/hold)
+GLOBAL_HIRE1, GLOBAL_HIRE2 = 0x809, 0x80A             # the two contract prices (gold)
+GLOBAL_COMP_FIRE, GLOBAL_COMP_LOOT = 0x80B, 0x80C     # 1 = holding fire, 1 = looting
+M_COMP = 4
+CBRANCH0, CTOPIC0, CINFO0 = 0x870, 0x890, 0xB00
+COMP_HELLO = ["Yes?", "What do you need?", "I'm listening."]
+# offer -> (answer lines, action, goodbye, follow-up child topics)
+COMP_TRAVEL = {
+    1: (["Gladly. Lead the way.", "Aye, we'll come along. Lead on."], "recruit", True, ()),
+    2: (["For coin, we'd walk with you. A day, or two?", "We hire out, if the pay is right. How long?"], "hireask", False, ("day1", "day2", "notnow")),
+    3: (["You've company enough already. We'd only slow you down."], "noroom", True, ()),
+    4: (["We have our own road to walk. Ask someone else."], "unwilling", True, ()),
+}
+# (key, prompt, conditions on (global, value), answers, action); "parent": a child of the paid "Travel with me" answer
+COMP_HIRE = [
+    ("day1", "One day, then. Here's the gold.", GLOBAL_HIRE1, ["Done. We're with you till this time tomorrow.", "Coin's good. Lead on."], "hire1"),
+    ("day2", "Two days. Here's the gold.", GLOBAL_HIRE2, ["Two days it is. Lead on.", "Done. We'll keep you breathing."], "hire2"),
+    ("notnow", "Not today.", None, ["Suit yourself."], "hirenot"),
+]
+COMP_ORDERS = [
+    ("follow", "Follow me.", (GLOBAL_COMP_STATE, 2), ["Right behind you.", "Lead on."], "follow"),
+    ("wait", "Wait here.", (GLOBAL_COMP_STATE, 1), ["We'll wait.", "We'll hold here."], "wait"),
+    ("move", "Go up ahead and hold there.", None, ["Moving up.", "Going."], "move"),
+    ("hold", "Hold your fire.", (GLOBAL_COMP_FIRE, 0), ["We'll keep our heads down.", "Weapons down, then."], "hold"),
+    ("attack", "Fight anything that threatens us.", (GLOBAL_COMP_FIRE, 1), ["With pleasure.", "About time."], "attack"),
+    ("loot", "Help yourselves to what the dead carry.", (GLOBAL_COMP_LOOT, 0), ["Won't say no to that."], "loot"),
+    ("noloot", "Leave the dead be.", (GLOBAL_COMP_LOOT, 1), ["As you say."], "noloot"),
+    ("gear", "Let me see your gear.", None, ["Here. Take a look."], "gear"),
+    ("dismiss", "We part ways here.", None, ["Safe roads, then.", "Fair enough. Luck to you."], "dismiss"),
+]
+
+# --- the wounded and the yielded (docs/WOUNDED.md): one more global, talk modes 5 (a member who is down) and 6 (a member who yielded)
+GLOBAL_WOUND_HEAL = 0x810                 # ALifeWoundHeal: 1 when the player carries a healing potion
+M_WOUND, M_YIELD = 5, 6
+WBRANCH0, WTOPIC0, WINFO0 = 0x8A0, 0x8B0, 0xC00
+WOUND_HELLO = ["Help... someone, please...", "I'm hurt... badly...", "Don't... don't leave me here..."]
+YIELD_HELLO = ["Mercy! I yield!", "Enough! I give up, I give up!", "Don't kill me! Please!"]
+# (key, prompt, mode, needs ALifeWoundHeal, answers, action)
+WOUND_TOPICS = [
+    ("heal", "Here, drink this.", M_WOUND, True, ["Thank you... I won't forget this.", "Gods... thank you, friend."], "heal"),
+    ("rob", "Hand over your gold.", M_WOUND, False, ["Take it... just leave me be.", "Here... take it, take it."], "wrob"),
+    ("finish", "Your fight is over.", M_WOUND, False, ["No... wait...", "Please, no..."], "finish"),
+    ("spare", "Go. And don't come back.", M_YIELD, False, ["Thank you! We're going, we're going!", "You won't see us again. I swear it."], "spare"),
+    ("robgo", "Empty your pockets, then go.", M_YIELD, False, ["Fine, fine! Take it all!", "Here, everything we have. Just let us go."], "robgo"),
+    ("nomercy", "No mercy.", M_YIELD, False, ["No! Please...!", "You swore... no!"], "nomercy"),
+]
+
 # ------------------------------------------------------------------------------------------------ content
 # Opening lines: what the squad says when the player talks to it (also what it says aloud when it stops the player).
 OPEN = {
     (M_TOLL, "bandit"): ["Well? Let's see the coin.", "Don't make this hard. A little gold and you walk on."],
+    (M_TOLL, "reaver"): ["This is Reaver ground, outlander. Coin, or blood.", "Ash and coin, that's what this island gives. Hand over yours."],
+    (M_CHAL, "redoran"): ["Halt. Raven Rock keeps the peace on this road. Your business?", "Outlander. State your business on Solstheim."],
+    (M_CHAL, "skaal"): ["You are far from the village, outsider. What do you want here?", "The All-Maker's land is not for wandering. Speak."],
     (M_CHAL, "forsworn"): ["Outsider. State why you walk the Reach.", "You are far from any road you know. Speak."],
     (M_CHAL, "necromancer"): ["You trespass on work you cannot grasp. Speak, before I lose patience."],
     (M_CHAL, "vampire"): ["Few come here willingly. What do you want?"],
@@ -81,6 +144,9 @@ OPEN = {
     (M_GREET, "dawnguard"): ["The Dawnguard welcomes a friend. What do you need?"],
     (M_GREET, "silverhand"): ["Hunter's luck. What is it?"],
     (M_GREET, "vigilant"): ["May Stendarr's mercy keep you. How can I help?"],
+    (M_GREET, "skaal"): ["The All-Maker keep you, traveller.", "Welcome. Few outsiders come this far north."],
+    (M_GREET, "redoran"): ["Walk in peace. Raven Rock watches these roads.", "Keep to the roads, outlander. The ash hides more than stone."],
+    (M_GREET, "reaver"): ["You again. Move along before we change our minds."],
     (M_GREET, "caravan"): ["Khajiit has wares, if you have coin.", "Welcome, friend. What does Khajiit's friend need?", "Good road, traveller. Look, look: Khajiit has much to sell."],
 }
 
@@ -102,6 +168,10 @@ ANSWER = {
     (M_TOLL, "refuse", "bandit"): ["Then we do this the hard way.", "Your mistake, friend."],
     (M_TOLL, "fight", "bandit"): ["Gladly!", "Big talk. Let's see it."],
     (M_TOLL, "poor", "bandit"): ["Hah. Empty pockets. Not worth the trouble. Go.", "Then you're no use to us. Get out of my sight."],
+    (M_TOLL, "pay", "reaver"): ["Smart. Now get off our ground.", "Good. The ash keeps your secret, and we keep your coin."],
+    (M_TOLL, "refuse", "reaver"): ["Then the island takes you.", "Wrong answer, outlander."],
+    (M_TOLL, "fight", "reaver"): ["Ha! At last, some sport.", "Come on, then!"],
+    (M_TOLL, "poor", "reaver"): ["Not even a few septims? Pathetic. Go.", "Then crawl back to Raven Rock, beggar."],
 }
 TRADE = {   # what a squad says before it opens its pack (the barter menu follows the conversation)
     "caravan": ["Khajiit has skooma, moon sugar, potions... all for a fair price, friend.", "Look, look. Khajiit's wares are the best on the road."],
@@ -112,6 +182,8 @@ TRADE = {   # what a squad says before it opens its pack (the barter menu follow
     "dawnguard": ["Spare supplies, yes. We can part with some.", "Potions and bolts for the cause. Take a look."],
     "bandit": ["Hah. Take a look. All of it 'liberated'.", "Cheap, if you ask no questions."],
     "silverhand": ["Spare supplies from the hunt. Have a look."],
+    "skaal": ["Furs and meat from the hunt. The All-Maker provides.", "We trade fairly. Have a look."],
+    "redoran": ["Supplies from the garrison stores. Don't tell the captain.", "A few things we can spare. Look quickly."],
 }
 for f_, lines_ in TRADE.items():
     ANSWER[(M_GREET, "trade", f_)] = lines_
@@ -119,10 +191,10 @@ LAWFUL_PEACE = ["Then keep that steel sheathed and keep moving.", "See that you 
 LAWFUL_DEFY = ["Then you'll answer to the law.", "That was a mistake."]
 WILD_PEACE = ["Then go. And do not come back this way.", "Quickly, then. Before I change my mind."]
 WILD_DEFY = ["Then you have chosen.", "Fool. You will not leave."]
-for f in ("imperial", "stormcloak", "thalmor", "dawnguard", "vigilant"):
+for f in ("imperial", "stormcloak", "thalmor", "dawnguard", "vigilant", "redoran"):
     ANSWER[(M_CHAL, "peace", f)] = LAWFUL_PEACE
     ANSWER[(M_CHAL, "defy", f)] = LAWFUL_DEFY
-for f in ("forsworn", "necromancer", "vampire", "silverhand"):
+for f in ("forsworn", "necromancer", "vampire", "silverhand", "skaal"):
     ANSWER[(M_CHAL, "peace", f)] = WILD_PEACE
     ANSWER[(M_CHAL, "defy", f)] = WILD_DEFY
 ANSWER[(M_CHAL, "peace", "thalmor")] = ["Then be on your way. And do not linger near the Embassy.", "See that you remain so."]
@@ -143,6 +215,9 @@ RUMORS = {   # general road news by faction flavour; the live news feed is in th
     "caravan": ["The roads are not kind to Khajiit. Keep a blade close, friend.", "Khajiit hears many things between the holds. Bandits on the old forts again.", "Moon sugar for the cold nights, friend. Khajiit has seen many winters."],
     "bandit": ["Walk on. I've nothing to say to you."],
     "forsworn": ["Outsiders carve the Reach into pieces. We remember."],
+    "skaal": ["The stones have been quiet since the outsider came. Or so we hope.", "Reavers came down past the Wind Stone again. We drove them off."],
+    "redoran": ["The Reavers grow bolder every season. We hold the roads near the Rock, no further.", "Ash storms out of the Red Mountain. Keep your face covered."],
+    "reaver": ["Walk on. Nothing for you here."],
 }
 
 
@@ -227,6 +302,28 @@ def build(out_esp, out_ltx):
             hello_infos += info(own(fid), line, conds_for(mode, faction), goodbye=False, random=len(lines) > 1)
             opening.append((mode, faction, line))
             count += 1
+    comp_info = [CINFO0]
+
+    def new_comp_info():
+        v = comp_info[0]
+        comp_info[0] += 1
+        return v
+    for faction in FACTIONS:
+        for line in COMP_HELLO:
+            hello_infos += info(own(new_comp_info()), line, conds_for(M_COMP, faction), goodbye=False, random=True)
+            count += 1
+    wound_info = [WINFO0]
+
+    def new_wound_info():
+        v = wound_info[0]
+        wound_info[0] += 1
+        return v
+    for faction in FACTIONS:
+        for mode, lines_ in ((M_WOUND, WOUND_HELLO), (M_YIELD, YIELD_HELLO)):
+            for line in lines_:
+                hello_infos += info(own(new_wound_info()), line, conds_for(mode, faction), goodbye=False, random=True)
+                opening.append((mode, faction, line))
+                count += 1
     hello = record("DIAL", own(HELLO), [sub("EDID", zstr("ALifeTalkHello")), sub("PNAM", struct.pack("<f", 100.0)), sub("QNAM", u32(GENERIC_DIALOGUE)),
                                         sub("DATA", bytes([0, 7, 0x4F, 0])), sub("SNAM", b"HELO"), sub("TIFC", u32(count))])
     dial_blob = hello + group(own(HELLO), 7, hello_infos)
@@ -271,7 +368,6 @@ def build(out_esp, out_ltx):
         return record("DLBR", branch, [sub("EDID", zstr(f"ALifeTaskBranch_{key}")), sub("QNAM", u32(GENERIC_DIALOGUE)), sub("TNAM", u32(0)),
                                        sub("DNAM", u32(1)), sub("SNAM", u32(tfid(key)))])
     work_branch = own(TBRANCH0)
-    job_dials = 0
     infos_blob, n = b"", 0
     for ty, lines in JOB_PITCH.items():
         for line in lines:
@@ -282,7 +378,6 @@ def build(out_esp, out_ltx):
             n += 1
     branches.append(branch_rec("work", work_branch))
     dial_blob += dial_rec("work", "Got any work for me?", work_branch, n) + group(tfid("work"), 7, infos_blob)
-    job_dials += 1
     for key, prompt, state, answers, action in JOB_TOPICS:
         if state is None:   # a follow-up of "Got any work?": same branch, not offered at the top level
             branch, conds = work_branch, [greet, gv(GLOBAL_OFFER, 0, OP_GT)]
@@ -297,13 +392,88 @@ def build(out_esp, out_ltx):
             infos_blob += info(own(fid), line, conds, goodbye=True, random=len(answers) > 1)
             talk_map.append((fid, action, "", M_GREET))
             n += 1
+        if key in ("turnin", "abandon"):   # M5e: the squad you escort hands in or takes back the job where it stands (companion mode)
+            comp_conds = [ctda(F_GETGLOBAL, own(GLOBAL_MODE), float(M_COMP)), gv(GLOBAL_STATE, state)]
+            for line in answers:
+                fid = new_info()
+                infos_blob += info(own(fid), line, comp_conds, goodbye=True, random=len(answers) > 1)
+                talk_map.append((fid, action, "", M_COMP))
+                n += 1
         dial_blob += dial_rec(key, prompt, branch, n) + group(tfid(key), 7, infos_blob)
-        job_dials += 1
+
+    # --- companions (docs/COMPANIONS.md): "Travel with me." (mode 3) with the paid follow-ups, and the orders (mode 4)
+    globs += [glob(GLOBAL_COMP_OFFER, "ALifeCompOffer", 0.0), glob(GLOBAL_COMP_STATE, "ALifeCompState", 0.0), glob(GLOBAL_HIRE1, "ALifeHireGold1", 0.0),
+              glob(GLOBAL_HIRE2, "ALifeHireGold2", 0.0), glob(GLOBAL_COMP_FIRE, "ALifeCompFire", 0.0), glob(GLOBAL_COMP_LOOT, "ALifeCompLoot", 0.0)]
+    ckeys = ["travel"] + [t[0] for t in COMP_HIRE] + [t[0] for t in COMP_ORDERS]
+    def cfid(key): return own(CTOPIC0 + ckeys.index(key))
+    def cbranch(key): return own(CBRANCH0 + ckeys.index(key))
+    def cdial(key, prompt, branch, n):
+        return record("DIAL", cfid(key), [sub("EDID", zstr(f"ALifeCompTopic_{key}")), sub("FULL", zstr(prompt)), sub("PNAM", struct.pack("<f", 100.0)),
+                                          sub("BNAM", u32(branch)), sub("QNAM", u32(GENERIC_DIALOGUE)), sub("DATA", b"\0\0\0\0"), sub("SNAM", b"CUST"), sub("TIFC", u32(n))])
+    def cbranch_rec(key):
+        return record("DLBR", cbranch(key), [sub("EDID", zstr(f"ALifeCompBranch_{key}")), sub("QNAM", u32(GENERIC_DIALOGUE)), sub("TNAM", u32(0)),
+                                             sub("DNAM", u32(1)), sub("SNAM", u32(cfid(key)))])
+    infos_blob, n = b"", 0
+    for offer, (lines_, action, goodbye, children) in COMP_TRAVEL.items():
+        for line in lines_:
+            fid = new_comp_info()
+            infos_blob += info(own(fid), line, [greet, gv(GLOBAL_COMP_OFFER, offer)], goodbye=goodbye, random=len(lines_) > 1,
+                               choices=tuple(cfid(c) for c in children))
+            talk_map.append((fid, action, "", M_GREET))
+            n += 1
+    branches.append(cbranch_rec("travel"))
+    dial_blob += cdial("travel", "Travel with me.", cbranch("travel"), n) + group(cfid("travel"), 7, infos_blob)
+    for key, prompt, price, answers, action in COMP_HIRE:   # follow-ups of the paid answer: same branch, not offered at the top level
+        conds = [greet, gv(GLOBAL_COMP_OFFER, 2)]
+        if price is not None:
+            conds.append(ctda(F_GETITEMCOUNT, GOLD, op=OP_GE, global_value=own(price), run_on=2, reference=PLAYER_REF))
+        infos_blob, n = b"", 0
+        for line in answers:
+            fid = new_comp_info()
+            infos_blob += info(own(fid), line, conds, goodbye=True, random=len(answers) > 1)
+            talk_map.append((fid, action, "", M_GREET))
+            n += 1
+        dial_blob += cdial(key, prompt, cbranch("travel"), n) + group(cfid(key), 7, infos_blob)
+    comp_mode = ctda(F_GETGLOBAL, own(GLOBAL_MODE), float(M_COMP))
+    for key, prompt, need, answers, action in COMP_ORDERS:
+        conds = [comp_mode] + ([gv(need[0], need[1])] if need else [])
+        infos_blob, n = b"", 0
+        for line in answers:
+            fid = new_comp_info()
+            infos_blob += info(own(fid), line, conds, goodbye=True, random=len(answers) > 1)
+            talk_map.append((fid, action, "", M_COMP))
+            n += 1
+        branches.append(cbranch_rec(key))
+        dial_blob += cdial(key, prompt, cbranch(key), n) + group(cfid(key), 7, infos_blob)
+    assert comp_info[0] <= 0xFFF, "ESL FormID range exceeded"
+
+    # --- the wounded (mode 5) and the yielded (mode 6): docs/WOUNDED.md s3-4
+    globs.append(glob(GLOBAL_WOUND_HEAL, "ALifeWoundHeal", 0.0))
+    wkeys = [t[0] for t in WOUND_TOPICS]
+    for key, prompt, mode, heal, answers, action in WOUND_TOPICS:
+        topic_fid, branch_fid = own(WTOPIC0 + wkeys.index(key)), own(WBRANCH0 + wkeys.index(key))
+        conds = [ctda(F_GETGLOBAL, own(GLOBAL_MODE), float(mode))] + ([gv(GLOBAL_WOUND_HEAL, 1)] if heal else [])
+        infos_blob, n = b"", 0
+        for line in answers:
+            fid = new_wound_info()
+            infos_blob += info(own(fid), line, conds, goodbye=True, random=len(answers) > 1)
+            talk_map.append((fid, action, "", mode))
+            n += 1
+        branches.append(record("DLBR", branch_fid, [sub("EDID", zstr(f"ALifeWoundBranch_{key}")), sub("QNAM", u32(GENERIC_DIALOGUE)), sub("TNAM", u32(0)),
+                                                    sub("DNAM", u32(1)), sub("SNAM", u32(topic_fid))]))
+        dial_blob += record("DIAL", topic_fid, [sub("EDID", zstr(f"ALifeWoundTopic_{key}")), sub("FULL", zstr(prompt)), sub("PNAM", struct.pack("<f", 100.0)),
+                                                sub("BNAM", u32(branch_fid)), sub("QNAM", u32(GENERIC_DIALOGUE)), sub("DATA", b"\0\0\0\0"), sub("SNAM", b"CUST"),
+                                                sub("TIFC", u32(n))]) + group(topic_fid, 7, infos_blob)
+    assert wound_info[0] <= 0xFFF and WTOPIC0 + len(WOUND_TOPICS) <= WINFO0, "ESL FormID range exceeded"
 
     # the sealed parcel (a vanilla satchel mesh; worth nothing to a merchant)
     parcel = record("MISC", own(PARCEL), [sub("EDID", zstr("ALifeSealedParcel")), sub("OBND", bytes.fromhex("f8fff7ff0000080007000700")),
                                           sub("FULL", zstr("Sealed Parcel")), sub("MODL", zstr("Clutter\\Containers\\Satchel.nif")),
                                           sub("DATA", struct.pack("<if", 0, 0.5))])
+    # M5e: the satchel on the recover job's body (same mesh; worth nothing to a merchant)
+    parcel += record("MISC", own(SATCHEL), [sub("EDID", zstr("ALifeRecoverSatchel")), sub("OBND", bytes.fromhex("f8fff7ff0000080007000700")),
+                                            sub("FULL", zstr("Bloodied Satchel")), sub("MODL", zstr("Clutter\\Containers\\Satchel.nif")),
+                                            sub("DATA", struct.pack("<if", 0, 0.5))])
     # ALifeTasks: Miscellaneous quest, 4 slots x (work, return) objectives aimed at 8 optional aliases the plugin fills with markers.
     # Layout after vanilla JailQuest: DNAM (flags, priority, ., ., type 6 = misc), NEXT, objectives (QOBJ FNAM NNAM QSTA), ANAM, aliases.
     q = [sub("EDID", zstr("ALifeTasks")), sub("FULL", zstr("A-Life Jobs")), sub("DNAM", struct.pack("<HBBII", 0, 50, 0, 0, 6)), sub("NEXT", b"")]
@@ -315,11 +485,25 @@ def build(out_esp, out_ltx):
         name = f"Target{i}" if i < TASK_SLOTS else f"Giver{i - TASK_SLOTS}"
         q += [sub("ALST", u32(i)), sub("ALID", zstr(name)), sub("FNAM", u32(0x2 | 0x8)), sub("ALED", b"")]   # optional, allow reuse
     quest = record("QUST", own(TASK_QUEST), q)
+    # M5f: the stash note (the mesh and bounds of vanilla note books, e.g. dunLabyrinthianMazeClue 108160; worth nothing) and the
+    # ALifeStashes quest: STASH_SLOTS objectives, each aimed at an optional alias the plugin fills with a marker on the stash
+    parcel += record("MISC", own(STASH_NOTE), [sub("EDID", zstr("ALifeStashNote")), sub("OBND", bytes.fromhex("f8fffbff0000080005000000")),
+                                               sub("FULL", zstr("Stash Note")), sub("MODL", zstr("Clutter\\Books\\Note01.nif")),
+                                               sub("DATA", struct.pack("<if", 0, 0.1))])
+    q = [sub("EDID", zstr("ALifeStashes")), sub("FULL", zstr("A-Life Stashes")), sub("DNAM", struct.pack("<HBBII", 0, 40, 0, 0, 6)), sub("NEXT", b"")]
+    for i in range(STASH_SLOTS):
+        q += [sub("QOBJ", struct.pack("<H", i)), sub("FNAM", u32(0)), sub("NNAM", zstr("Stash")), sub("QSTA", struct.pack("<iI", i, 0))]
+    q.append(sub("ANAM", u32(STASH_SLOTS)))
+    for i in range(STASH_SLOTS):
+        q += [sub("ALST", u32(i)), sub("ALID", zstr(f"Stash{i}")), sub("FNAM", u32(0x2 | 0x8)), sub("ALED", b"")]   # optional, allow reuse
+    quest += record("QUST", own(STASH_QUEST), q)
 
-    nrec = len(globs) + len(branches) + 1 + (len(branches) - 4) + job_dials + len(talk_map) + len(opening) + 2
     body = (group("GLOB", 0, b"".join(globs)) + group("MISC", 0, parcel) + group("DLBR", 0, b"".join(branches)) + group("DIAL", 0, dial_blob)
             + group("QUST", 0, quest))
-    hedr = sub("HEDR", struct.pack("<fII", 1.71, nrec, next_info[0]))
+    # next object ID: one past the highest local ID written (tools/check_next_id.py checks it after the write)
+    next_id = 1 + max(r.fid & 0xFFFFFF for r in esp.walk(body) if (r.fid >> 24) == len(MASTERS))
+    nrec = esp.hedr_count(body)   # records plus GRUPs, the way the Creation Kit and the DLC masters count them
+    hedr = sub("HEDR", struct.pack("<fII", 1.71, nrec, next_id))
     tes4_subs = [hedr, sub("CNAM", zstr("A-Life")), sub("SNAM", zstr("A-Life squad dialogue (generated by tools/build_talk_esp.py)"))]
     for m in MASTERS:
         tes4_subs += [sub("MAST", zstr(m)), sub("DATA", struct.pack("<Q", 0))]
@@ -327,14 +511,19 @@ def build(out_esp, out_ltx):
     tes4 = record("TES4", 0, tes4_subs)
     tes4 = tes4[:8] + struct.pack("<I", 0x200) + tes4[12:]   # ESL flag
     open(out_esp, "wb").write(tes4 + body)
+    ok, nid, top, bad = check_next_id.check(tes4 + body)
+    assert ok, f"{out_esp}: next object ID 0x{nid:X}, own records at or above it: {[hex(b) for b in bad]}"
 
     # --- talk.ltx for the plugin: response -> action, and the opening lines it speaks aloud
     lines = ["; generated by tools/build_talk_esp.py - do not edit", "", "[responses]   ; local FormID in ALifeTalk.esp = action"]
     for fid, action, faction, mode in talk_map:
         lines.append(f"{fid:X} = {action}")
     lines += ["", "[globals]", f"mode = {GLOBAL_MODE:X}", f"toll = {GLOBAL_TOLL:X}", f"hello = {HELLO:X}", f"task_offer = {GLOBAL_OFFER:X}",
-              f"task_state = {GLOBAL_STATE:X}", "", "[tasks]   ; docs/TASKS.md", f"quest = {TASK_QUEST:X}", f"parcel = {PARCEL:X}",
-              f"slots = {TASK_SLOTS}", "", "[open]   ; mode.faction = line | line"]
+              f"task_state = {GLOBAL_STATE:X}",
+              f"comp_offer = {GLOBAL_COMP_OFFER:X}", f"comp_state = {GLOBAL_COMP_STATE:X}", f"hire1 = {GLOBAL_HIRE1:X}", f"hire2 = {GLOBAL_HIRE2:X}",
+              f"comp_fire = {GLOBAL_COMP_FIRE:X}", f"comp_loot = {GLOBAL_COMP_LOOT:X}", f"wound_heal = {GLOBAL_WOUND_HEAL:X}", "", "[tasks]   ; docs/TASKS.md", f"quest = {TASK_QUEST:X}", f"parcel = {PARCEL:X}",
+              f"satchel = {SATCHEL:X}", f"slots = {TASK_SLOTS}", "", "[stashes]   ; docs/STASHES.md", f"note = {STASH_NOTE:X}", f"quest = {STASH_QUEST:X}",
+              f"slots = {STASH_SLOTS}", "", "[open]   ; mode.faction = line | line"]
     grouped = {}
     for mode, faction, line in opening: grouped.setdefault((mode, faction), []).append(line)
     for (mode, faction), ls in sorted(grouped.items()):

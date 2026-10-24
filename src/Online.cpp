@@ -1,7 +1,9 @@
+#include "ALife/Companions.h"
 #include "ALife/Forms.h"
 #include "ALife/Log.h"
 #include "ALife/Rep.h"
 #include "ALife/Systems.h"
+#include "ALife/Wounded.h"
 
 // Bringing offline squads into the world: a squad whose simulated position is near the player comes online as pool
 // actors placed out of view on the navmesh, is driven with linked-ref AI packages toward the smart terrain the board
@@ -35,8 +37,40 @@ namespace {
 		return std::sqrt(dx * dx + dy * dy);
 	}
 
+	bool gCompanionsFillBudget = false;   // the one-line log when companions fill the on-screen budget (Tick)
+
+	// Dragons on screen (docs/DRAGONS.md sections 2 and 6): closer than online_distance, never while staying at a vanilla dragon lair
+	// (its own dragon is the one met there), and only when vanilla's random-dragon timer allows; coming on screen pushes that timer
+	// on exactly as WIFunctionsScript.updateWIDragonTimer does, so ALife and vanilla dragon attacks never double up.
+	constexpr RE::FormID kMQ106TurnOffRandomDragons = 0x0C65BB, kWINextDragon = 0x0E518E, kWIWaitDragon = 0x0E518F;
+	std::unordered_map<std::uint64_t, double> gDragonOnlineAt;   // group id -> game hour it came on screen
+	float GameDays()
+	{
+		auto* cal = RE::Calendar::GetSingleton();
+		return cal ? cal->GetDaysPassed() : 0.f;
+	}
+	bool DragonDue(const Group& g)
+	{
+		if (g.action == Action::Stay && g.currentTarget >= 0)
+			if (const GraphNode* n = Graph::Node(std::uint32_t(g.currentTarget)); n && n->kind == Kind::DragonLair) return false;
+		auto* off = RE::TESForm::LookupByID<RE::TESGlobal>(kMQ106TurnOffRandomDragons);
+		auto* next = RE::TESForm::LookupByID<RE::TESGlobal>(kWINextDragon);
+		return (!off || off->value == 0.f) && (!next || next->value < GameDays());
+	}
+	void DragonCameOnline(const Group& g)
+	{
+		gDragonOnlineAt[g.id] = Sim::Hours();
+		auto* next = RE::TESForm::LookupByID<RE::TESGlobal>(kWINextDragon);
+		auto* wait = RE::TESForm::LookupByID<RE::TESGlobal>(kWIWaitDragon);
+		if (next) next->value = GameDays() + (wait ? wait->value : 3.f);
+		Log::Line("[dragon] #" + std::to_string(g.id) + " on screen; WINextDragon -> " + std::to_string(next ? next->value : -1.f));
+	}
+
 	int FreeSlot()
 	{
+		int used = 0;
+		for (auto o : gSlotOwner) used += o != 0;
+		if (used >= Sim::Cfg().compat.onlineGroups) return -1;   // patrol-mod budget (docs/COMPAT.md)
 		for (int i = 0; i < kMaxOnlineGroups; ++i)
 			if (!gSlotOwner[i] && Forms::R().slotMarkers[i] && Forms::R().fSlot[i]) return i;
 		return -1;
@@ -501,6 +535,7 @@ namespace {
 	void SetupActor(RE::Actor* a, Group& g, Member& m, int slot, bool hostileToPlayer)
 	{
 		const auto& r = Forms::R();
+		if (!Companions::Has(g.id)) Companions::Unteam(a);   // the teammate flag lives in the savegame: a reused actor must not keep it
 		Pool::FullWipe(a);
 		a->SetDisplayName(m.title.empty() ? m.name : m.name + " " + m.title, true);
 		if (auto* base = a->GetActorBase()) {
@@ -646,8 +681,9 @@ static bool BringOnline(Group& g, RE::PlayerCharacter* pc, bool allowFallbackRac
 	int living = 0;
 	for (auto& m : g.members) living += (m.alive() && m.health >= 1.f);
 	if (living == 0) return false;
-	if (Sim::ActorsLoaded() + living > kMaxOnlineActors) {
-		SkipLog(g, "actor cap", std::to_string(Sim::ActorsLoaded()) + "+" + std::to_string(living) + ">" + std::to_string(kMaxOnlineActors), forceNear);
+	const int actorCap = Sim::Cfg().compat.onlineActors;   // 15, or less while a patrol mod shares the screen (docs/COMPAT.md)
+	if (Sim::ActorsLoaded() + living > actorCap) {
+		SkipLog(g, "actor cap", std::to_string(Sim::ActorsLoaded()) + "+" + std::to_string(living) + ">" + std::to_string(actorCap), forceNear);
 		return false;
 	}
 	const bool beasts = !IsHumanFaction(g.faction);
@@ -792,9 +828,86 @@ void Hold(Group& g)
 
 void Resume(Group& g)
 {
+	if (Companions::Has(g.id)) { Companions::Redrive(g); return; }   // back to the player's orders, not the board's plan
 	gDriven.erase(g.id);
 	gStay.erase(g.id);
 	DriveOnline(g);
+}
+
+void SetActorMode(RE::Actor* a, int rank) { SetMode(a, rank); }
+void MakeRoom(std::initializer_list<std::uint64_t> a_keep, const char* a_why)
+{
+	auto* pc = RE::PlayerCharacter::GetSingleton();
+	if (!pc) return;
+	Group* furthest = nullptr;
+	float best = -1.f;
+	for (auto& g : Sim::Groups()) {
+		if (!g.online || Companions::Has(g.id) || std::find(a_keep.begin(), a_keep.end(), g.id) != a_keep.end()) continue;
+		const float d = Dist2D(pc->GetPosition(), g.x, g.y);
+		if (d > best) { best = d; furthest = &g; }
+	}
+	if (!furthest) return;
+	gOffWhy = a_why;
+	SendOffline(*furthest, true);
+}
+void MoveRef(RE::TESObjectREFR* a_ref, RE::TESObjectCELL* a_cell, RE::TESWorldSpace* a_ws, const RE::NiPoint3& a_pos) { MoveRefTo(a_ref, a_cell, a_ws, a_pos); }
+bool SnapPoint(const RE::NiPoint3& p, float radius, RE::NiPoint3& out, RE::TESObjectCELL*& cell)
+{
+	Snap sn;
+	if (!SnapToNavmesh(p, radius, sn)) return false;
+	out = sn.pos;
+	cell = sn.cell;
+	return true;
+}
+
+// Companions (docs/COMPANIONS.md): the squad's pool actors straight to a spot beside the player or at its wait point, in any cell
+// (interiors too, which BringOnline never places in). It holds a slot like any squad on screen; Companions drives it from here.
+bool PlaceAt(Group& g, RE::TESObjectCELL* cell, RE::TESWorldSpace* ws, const RE::NiPoint3& pos)
+{
+	const auto& r = Forms::R();
+	if (g.online) return true;
+	const int slot = FreeSlot();
+	if (slot < 0 || !cell || !IsHumanFaction(g.faction)) return false;
+	int living = 0;
+	for (auto& m : g.members) living += (m.alive() && m.health >= 1.f);
+	if (living == 0 || Sim::ActorsLoaded() + living > kMaxOnlineActors || !Pool::CanAssignAll(g.members, true)) return false;
+	auto* mk = r.slotMarkers[slot];
+	MoveRefTo(mk, cell, ws, pos);
+	std::vector<Member*> assigned;
+	for (auto& m : g.members) {
+		if (!m.alive() || m.health < 1.f) continue;
+		if (!Pool::Assign(m, true)) {
+			for (auto* am : assigned) Pool::Release(*am);
+			if (r.holdingMarker) mk->MoveTo(r.holdingMarker);
+			return false;
+		}
+		assigned.push_back(&m);
+	}
+	int placed = 0;
+	float k = 0.f;
+	for (auto* m : assigned) {
+		auto* a = Pool::ActorOf(*m);
+		if (!a) continue;
+		MoveRefTo(a, cell, ws, { pos.x + 70.f * std::sin(k), pos.y + 70.f * std::cos(k), pos.z });
+		k += 2.1f;
+		if (a->IsDisabled()) a->Enable(false);
+		SetupActor(a, g, *m, slot, false);
+		++placed;
+	}
+	if (placed == 0) {
+		for (auto* am : assigned) Pool::Release(*am);
+		if (r.holdingMarker) mk->MoveTo(r.holdingMarker);
+		return false;
+	}
+	gPlaced[slot] = Snap{ pos, cell };
+	gOnlineSince[g.id] = gClock;
+	gSlotOwner[slot] = g.id;
+	g.online = true;
+	g.slot = slot;
+	g.trust = Trust::Neutral;
+	Log::Line(std::string("[online] ") + FactionId(g.faction) + " #" + std::to_string(g.id) + " x" + std::to_string(placed) + " placed as companions at " +
+			  std::to_string(int(pos.x)) + "," + std::to_string(int(pos.y)) + " cell=" + CellText(cell) + " slot=" + std::to_string(slot));
+	return true;
 }
 
 bool BringOnlineEx(Group& g, bool allowFallbackRace, bool forceNear)
@@ -841,6 +954,7 @@ void SendOffline(Group& g, bool)
 		if (!lead && !a->IsDead()) lead = a;
 		Economy::ReadBackFrom(a, m);   // gear persistence: what they picked up or used stays with them
 	}
+	Wounded::OnSendOffline(g);   // kneeling flags off; the down read back as health 0 must not count as dead
 	if (lead) {
 		auto p = lead->GetPosition();
 		g.x = p.x; g.y = p.y; g.z = p.z;
@@ -852,6 +966,7 @@ void SendOffline(Group& g, bool)
 	for (auto& m : g.members) {
 		auto* a = Pool::ActorOf(m);
 		if (a) {
+			Companions::Unteam(a);
 			Pool::FullWipe(a);
 			if (a->IsDead()) a->Resurrect(false, false);
 			if (r.holdingMarker) a->MoveTo(r.holdingMarker);
@@ -890,6 +1005,7 @@ void OnCellDetach(RE::TESObjectCELL*) {}
 void Reset()
 {
 	gSlotOwner.fill(0);
+	CampLife::Reset();
 	gRetryAt.clear();
 	gDroppedAt.clear();
 	gOnlineSince.clear();
@@ -931,6 +1047,7 @@ void Tick(float a_dt)
 	if (!pc || !Forms::R().pluginLoaded) return;
 	gClock += a_dt;
 	Creatures::Tick();
+	CampLife::Tick(a_dt);
 	Scavenge::Tick(a_dt);
 	SkipSummary();
 	VerifyTick();
@@ -950,6 +1067,7 @@ void Tick(float a_dt)
 		}
 		const bool leadInWorld = lead && Forms::WsIndex(lead->GetWorldspace()) == int(g.ws);
 		if (leadInWorld) { auto p = lead->GetPosition(); g.x = p.x; g.y = p.y; g.z = p.z; }
+		if (Companions::Has(g.id)) continue;   // travelling with the player (docs/COMPANIONS.md): Companions keeps it on screen and drives it
 		auto since = gOnlineSince.find(g.id);
 		const bool grace = since != gOnlineSince.end() && gClock - since->second < kOnlineGrace;
 		const float d = Dist2D(pp, g.x, g.y);
@@ -958,7 +1076,10 @@ void Tick(float a_dt)
 		else if (!grace) {
 			if (!lead) why = present ? "allDead" : "noActor";
 			else if (!leadInWorld) why = "leaderNotInTamriel";
-			else if (d > OfflineDist()) why = "far d=" + std::to_string(int(d));
+			else if (d > (Sim::B().IsDragon(g) ? Sim::B().DragonEff().offlineDistance : OfflineDist())) why = "far d=" + std::to_string(int(d));
+			else if (Sim::B().IsDragon(g) && gDragonOnlineAt.count(g.id) && Sim::Hours() - gDragonOnlineAt[g.id] > Sim::B().DragonEff().onlineMaxHours &&
+			         d > PickRadius() && !lead->IsInCombat())
+				why = "dragonFliesOff";   // docs/DRAGONS.md: after online_max_hours, once out of the fight and away, it flies on
 			else if (d > kOfflineUnloadedDist) {
 				auto* lc = lead->GetParentCell();
 				if (!lead->Is3DLoaded() || !lc || !lc->IsAttached()) why = "leftLoadedArea d=" + std::to_string(int(d));
@@ -979,7 +1100,10 @@ void Tick(float a_dt)
 		const bool free = !scavenging && g.trust != Trust::BackingOff && g.trust != Trust::Wary;   // a challenging squad is driven by Behavior
 		if (free && (changed || (g.action == Action::Reach && gClock - dr.at > kReDriveSeconds)))
 			DriveOnline(g);
-		if (free && g.action != Action::Reach) StayDirector(g, lead, changed);   // idle squads patrol and pause
+		if (free && g.action != Action::Reach) {
+			CampLife::TickGroup(g, lead, changed);                                   // jobs at the place (docs/CAMPLIFE.md)
+			if (!CampLife::OwnsLeader(g)) StayDirector(g, lead, changed);           // idle squads patrol and pause
+		}
 		Behavior::TickOnline(g, a_dt);
 	}
 	// online squads of hostile factions fight each other on sight (engine relations do most of it; this starts it for stragglers)
@@ -991,16 +1115,16 @@ void Tick(float a_dt)
 		for (auto& ga : groups)
 			for (auto& gb : groups) {
 				if (&ga == &gb || !ga.online || !gb.online) continue;
-				if (!cfg.IsEnemy(ga.faction, gb.faction)) continue;
+				if (!cfg.IsEnemy(ga.faction, gb.faction) || Companions::HoldsFire(ga.id)) continue;
 				float dx = ga.x - gb.x, dy = ga.y - gb.y;
 				if (dx * dx + dy * dy > 3000.f * 3000.f) continue;
 				std::vector<RE::Actor*> targets;
-				for (auto& m : gb.members) if (auto* t = Pool::ActorOf(m); t && !t->IsDead()) targets.push_back(t);
+				for (auto& m : gb.members) if (auto* t = Pool::ActorOf(m); t && !t->IsDead() && Pool::InWorld(t) && !Wounded::IsDown(m.id)) targets.push_back(t);   // the down are out of the fight
 				if (targets.empty()) continue;
 				std::size_t k = 0;
 				for (auto& m : ga.members) {
 					auto* a = Pool::ActorOf(m);
-					if (!a || a->IsDead() || a->IsInCombat()) continue;
+					if (!a || a->IsDead() || a->IsInCombat() || !Pool::InWorld(a) || Wounded::IsDown(m.id)) continue;   // combat start on an actor without 3D / cell crashed the engine (M5b lab run 2)
 					a->StartCombat(targets[k++ % targets.size()]);
 				}
 			}
@@ -1009,9 +1133,18 @@ void Tick(float a_dt)
 	if (!inTamriel || Sim::CatchingUp()) return;
 	// bring the nearest eligible group online
 	Group* best = nullptr;
-	float bd = PickRadius();
+	Group* dragon = nullptr;   // the nearest dragon that may come on screen (docs/DRAGONS.md): only when no squad is due
+	float bd = PickRadius(), dd = Sim::B().DragonEff().onlineDistance;
 	for (auto& g : groups) {
-		if (g.online || g.members.empty() || int(g.ws) != playerWs) continue;
+		if (g.online || g.members.empty() || int(g.ws) != playerWs || Companions::Has(g.id)) continue;   // companions come on screen by Companions
+		if (Sim::B().held.count(g.id)) continue;   // a rescue's captive stays out of the world while held (docs/TASKS.md section 8)
+		if (Sim::B().IsDragon(g)) {
+			if (g.livingCount() == 0 || Sim::B().Blocked(Faction::Dragon, g.ws)) continue;
+			if (auto it = gRetryAt.find(g.id); it != gRetryAt.end() && gClock < it->second) continue;
+			const float d = Dist2D(pp, g.x, g.y);
+			if (d < dd && DragonDue(g)) { dd = d; dragon = &g; }
+			continue;
+		}
 		if (Graph::InCityBuffer(g.x, g.y, g.ws)) continue;   // squads inside a city stay offline (the guards own the streets)
 		if (auto it = gRetryAt.find(g.id); it != gRetryAt.end() && gClock < it->second) continue;
 		if (!IsHumanFaction(g.faction) && !Sim::B().MonsterMayComeOnline(g, HourOfDay(Sim::Hours()))) continue;   // Anomaly: day / night mutants stay offline outside their hours
@@ -1019,9 +1152,20 @@ void Tick(float a_dt)
 		if (auto it = gDroppedAt.find(g.id); it != gDroppedAt.end() && gClock - it->second.at < kRejoinForget && d > it->second.d - kRejoinMargin) continue;   // walked away from: not pulled back
 		if (d < bd) { bd = d; best = &g; }
 	}
-	if (best && Sim::GroupsOnline() < kMaxOnlineGroups) {
+	{   // companions outrank world squads: when they fill the budget no world squad comes on screen (logged once each time it starts)
+		int comps = 0;
+		for (auto& g : groups) comps += g.online && Companions::Has(g.id);
+		const bool full = comps > 0 && AtOnlineBudget(comps, Sim::Cfg().compat.onlineGroups, Companions::SlotsWanted());
+		if (full && !gCompanionsFillBudget)
+			Log::Line("[online] companions fill the on-screen budget (" + std::to_string(Sim::Cfg().compat.onlineGroups) + " groups): no world squads come on screen");
+		gCompanionsFillBudget = full;
+	}
+	if (best && !AtBudget(Companions::SlotsWanted())) {   // patrol-mod budget (docs/COMPAT.md), less the slots kept for companions not placed yet (after a load)
 		if (BringOnline(*best, pc, true, false)) { gRetryAt.erase(best->id); gSkipSeen.erase(best->id); gDroppedAt.erase(best->id); }
 		else gRetryAt[best->id] = gClock + kRetrySeconds;
+	} else if (dragon && !AtBudget(Companions::SlotsWanted())) {
+		if (BringOnline(*dragon, pc, true, false)) { gRetryAt.erase(dragon->id); DragonCameOnline(*dragon); }
+		else gRetryAt[dragon->id] = gClock + kRetrySeconds;
 	}
 }
 std::string OfflineWhy(const Group& g)
@@ -1030,6 +1174,7 @@ std::string OfflineWhy(const Group& g)
 	if (!pc) return "noPlayer";
 	if (g.online) return "";
 	if (g.members.empty()) return "empty";
+	if (Companions::Has(g.id)) return "companion";
 	if (int(g.ws) != Forms::WsIndex(pc->GetWorldspace())) return "otherWorld";
 	if (Sim::CatchingUp()) return "catchingUp";
 	if (Graph::InCityBuffer(g.x, g.y, g.ws)) return "cityBuffer";
@@ -1038,7 +1183,8 @@ std::string OfflineWhy(const Group& g)
 	if (auto it = gDroppedAt.find(g.id); it != gDroppedAt.end() && gClock - it->second.at < kRejoinForget && d > it->second.d - kRejoinMargin) return "walkedAway";
 	if (!IsHumanFaction(g.faction) && !Sim::B().MonsterMayComeOnline(g, HourOfDay(Sim::Hours()))) return "monsterHours";
 	if (auto it = gRetryAt.find(g.id); it != gRetryAt.end() && gClock < it->second) return "retryWait";
-	if (Sim::GroupsOnline() >= kMaxOnlineGroups) return "cap";
+	if (AtBudget(Companions::SlotsWanted())) return "cap";
 	return "";
 }
+bool AtBudget(int a_reserve) { return AtOnlineBudget(Sim::GroupsOnline(), Sim::Cfg().compat.onlineGroups, a_reserve); }
 }

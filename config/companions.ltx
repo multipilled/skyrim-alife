@@ -1,0 +1,23 @@
+; Companions and recruiting (docs/COMPANIONS.md). Anomaly: configs/ai_tweaks/axr_companions.ltx + txr_paid_companions.script.
+
+[companions]
+max_members = 6                 ; living companions in all (Anomaly max_actor_squad_size = 2, 4 with Patriarch; ALife squads are 2-5 strong)
+max_squads = 2                  ; companion squads at once (each holds one of the three on-screen slots; one stays for the world). Under a patrol-mod budget of 1 (docs/COMPAT.md), only one companion squad can be on screen
+paid_factions = wanderer, mercenary, bandit, hunter, reaver   ; neutral squads of these hire out (Anomaly: stalker, killer, bandit, freedom; Solstheim's Reavers)
+day_gold = 250                  ; one day's pay x the squad's price factor (Anomaly money_1_base = 1500)
+days = 1, 2                     ; the two contracts offered, in game days
+warn_hours = 1                  ; notice this long before a contract ends
+teleport_distance = 4000        ; a following companion further away than this is brought to the player (out of sight)
+move_distance = 1500            ; "go up ahead and hold there": this far beyond the speaker
+wait_place_distance = 8000      ; after a load, a waiting squad is put back at its spot once the player is this close
+loot_default = false            ; companions loot the dead only when told to
+
+[willing_chance]                ; a neutral squad works for pay with this chance, rolled once per squad (txr_paid_companions.is_squad_competent)
+novice = 0
+advanced = 0.4
+veteran = 0.7
+
+[price_factor]                  ; the squad's price factor range by tier
+novice = 0.8, 1.2
+advanced = 1.3, 1.6
+veteran = 1.8, 2.4

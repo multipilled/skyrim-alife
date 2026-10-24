@@ -30,6 +30,18 @@ namespace {
 		constexpr RE::FormID OtftVigilant = 0xB3290, OtftVigilantNoHood = 0xC7891;
 		constexpr RE::FormID OtftOrcishNoHelm = 0x57A1B, OtftImperialStudded = 0x57A28;
 	}
+	// Dragonborn.esm outfits (plugin-local FormIDs, checked against the user's Dragonborn.esm with tools/esp.py)
+	namespace D2 {
+		constexpr RE::FormID OtftSkaalHat = 0x398CA, OtftSkaalNoHat = 0x39B34, OtftSkaalChanceHat = 0x39BBF;   // DLC2SkaalOutfit*
+		constexpr RE::FormID OtftRedoranGuard = 0x195AE, OtftRedoranGuardBare = 0x3CA5B;   // DLC2RRRedoranGuardOutfit(NoHelmetNoShield)
+		constexpr RE::FormID OtftReaverShield = 0x26B46, OtftReaverNoShield = 0x26B5B, OtftReaverBoss = 0x26B60;   // DLC2BanditArmor* (the Reavers' own)
+	}
+	// a Dragonborn form's runtime id, 0 when Dragonborn is not loaded (the callers then fall back to the vanilla outfit)
+	RE::FormID Dlc2(RE::FormID a_local)
+	{
+		auto* dh = RE::TESDataHandler::GetSingleton();
+		return dh && dh->LookupModByName("Dragonborn.esm"sv) ? dh->LookupFormID(a_local, "Dragonborn.esm"sv) : 0;
+	}
 
 	struct PerkReq { RE::FormID perk; int skill; float min; };
 	constexpr PerkReq kPerks[] = {
@@ -276,6 +288,8 @@ namespace {
 		case Faction::Necromancer: return rng.chance(0.4f) ? L::OtftWarlock : L::OtftNecromancer;
 		case Faction::Vampire: return leader ? L::OtftVampireBoss : L::OtftVampire;
 		case Faction::Vigilant: return rng.chance(0.5f) ? L::OtftVigilant : L::OtftVigilantNoHood;
+		case Faction::Skaal: return Dlc2(leader ? D2::OtftSkaalHat : rng.chance(0.5f) ? D2::OtftSkaalChanceHat : D2::OtftSkaalNoHat);
+		case Faction::Redoran: return Dlc2(k == Kit::Archer || k == Kit::Melee2H ? D2::OtftRedoranGuardBare : D2::OtftRedoranGuard);
 		case Faction::Mage:
 			return k == Kit::Spellsword ? L::OtftBattlemage : rng.chance(0.5f) ? L::OtftMageDestruction : (rng.chance(0.5f) ? L::OtftMageConjuration : L::OtftMageRobes);
 		case Faction::Mercenary: return rng.chance(0.6f) ? L::OtftOrcishNoHelm : L::OtftImperialStudded;
@@ -372,7 +386,8 @@ void OutfitNew(Member& m)
 	auto prim = [&](int s) { m.skills[s] = std::min(100.f, 15.f + float(m.level) * 2.5f); };
 	auto sec = [&](int s) { m.skills[s] = std::min(100.f, 15.f + float(m.level) * 1.5f); };
 	const bool leader = m.role == Role::Leader;
-	const bool bandit = m.faction == Faction::Bandit || m.faction == Faction::SilverHand;
+	const bool bandit = m.faction == Faction::Bandit || m.faction == Faction::SilverHand || m.faction == Faction::Reaver;
+	const bool reaver = m.faction == Faction::Reaver;
 
 	// role -> combat class (the class drives the kit, the skills and the AI's combat style)
 	switch (m.role) {
@@ -385,7 +400,7 @@ void OutfitNew(Member& m)
 	}
 	if (m.faction == Faction::Hunter) m.classId = ClassRanger;
 	const Kit k = KitOf(m);
-	const int lvl = std::min(m.level, m.level + 4);
+	const int lvl = std::max(1, m.level + Sim::Cfg().diff.gearLevels);   // squad strength: harder games resolve the leveled gear higher (docs/DIFFICULTY.md)
 	float hpL = 8, mpL = 3, spL = 7;
 	switch (k) {
 	case Kit::Archer: prim(kArchery); sec(kLightArmor); sec(kSneak); sec(kOneHanded); hpL = 7; mpL = 3; spL = 10; break;
@@ -416,12 +431,14 @@ void OutfitNew(Member& m)
 
 	// gear from vanilla lists, level-capped
 	std::vector<Item> got;
+	// the Reavers wear Dragonborn's own bandit armour (DLC2EncBandit*); without Dragonborn the vanilla outfit
+	auto banditOtft = [&](RE::FormID vanilla, RE::FormID dlc2) { const RE::FormID d = reaver ? Dlc2(dlc2) : 0; return d ? d : vanilla; };
 	if (bandit) {
 		if (leader && m.level >= 6) {
-			ResolveOutfit(L::OtftBanditBoss, lvl, rng, got);
+			ResolveOutfit(banditOtft(L::OtftBanditBoss, D2::OtftReaverBoss), lvl, rng, got);
 			Resolve(F(k == Kit::Melee2H ? L::BanditBossWeapon2H : L::BanditBossWeapon1H), lvl, 1, rng, got);
 		} else if (k == Kit::Archer) {
-			ResolveOutfit(L::OtftBanditMissile, lvl, rng, got);
+			ResolveOutfit(banditOtft(L::OtftBanditMissile, D2::OtftReaverNoShield), lvl, rng, got);
 			Resolve(F(L::BanditBow), lvl, 1, rng, got);
 			Resolve(F(L::BanditArrows), lvl, 1, rng, got);
 			Resolve(F(L::BanditWeapon1H), lvl, 1, rng, got);
@@ -429,7 +446,8 @@ void OutfitNew(Member& m)
 			ResolveOutfit(L::OtftBanditMage, lvl, rng, got);
 		} else {
 			int o = rng.index(3);
-			ResolveOutfit(o == 0 ? L::OtftBanditHeavy : o == 1 ? L::OtftBanditShield : L::OtftBanditNoShield, lvl, rng, got);
+			ResolveOutfit(o == 0 ? banditOtft(L::OtftBanditHeavy, D2::OtftReaverShield) : o == 1 ? banditOtft(L::OtftBanditShield, D2::OtftReaverShield)
+																	 : banditOtft(L::OtftBanditNoShield, D2::OtftReaverNoShield), lvl, rng, got);
 			Resolve(F(rng.chance(0.3f) || k == Kit::Melee2H ? L::BanditWeapon2H : L::BanditWeapon1H), lvl, 1, rng, got);
 			if (o != 2 && k != Kit::Melee2H) Resolve(F(L::BanditShield50), lvl, 1, rng, got);
 		}

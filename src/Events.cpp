@@ -1,6 +1,7 @@
 #include "ALife/Forms.h"
 #include "ALife/Log.h"
 #include "ALife/Settings.h"
+#include "ALife/StashesPlugin.h"
 #include "ALife/Systems.h"
 #include "ALife/Talk.h"
 
@@ -40,7 +41,8 @@ namespace {
 		public RE::BSTEventSink<RE::TESHitEvent>,
 		public RE::BSTEventSink<RE::TESCombatEvent>,
 		public RE::BSTEventSink<RE::TESDeathEvent>,
-		public RE::BSTEventSink<RE::TESTopicInfoEvent>
+		public RE::BSTEventSink<RE::TESTopicInfoEvent>,
+		public RE::BSTEventSink<RE::TESContainerChangedEvent>
 	{
 	public:
 		static GameSink* Get() { static GameSink s; return &s; }
@@ -61,6 +63,11 @@ namespace {
 		RE::BSEventNotifyControl ProcessEvent(const RE::TESCombatEvent* e, RE::BSTEventSource<RE::TESCombatEvent>*) override
 		{
 			if (e && e->newState.any(RE::ACTOR_COMBAT_STATE::kCombat)) Protect::OnCombat(AsActor(e->actor), AsActor(e->targetActor));
+			return RE::BSEventNotifyControl::kContinue;
+		}
+		RE::BSEventNotifyControl ProcessEvent(const RE::TESContainerChangedEvent* e, RE::BSTEventSource<RE::TESContainerChangedEvent>*) override
+		{
+			StashPlugin::OnContainerChanged(e);   // queued: stash notes read, stashes looted (docs/STASHES.md)
 			return RE::BSEventNotifyControl::kContinue;
 		}
 		RE::BSEventNotifyControl ProcessEvent(const RE::TESTopicInfoEvent* e, RE::BSTEventSource<RE::TESTopicInfoEvent>*) override
@@ -94,5 +101,6 @@ void RegisterGame()
 	h->AddEventSink<RE::TESCombatEvent>(GameSink::Get());
 	h->AddEventSink<RE::TESDeathEvent>(GameSink::Get());
 	h->AddEventSink<RE::TESTopicInfoEvent>(GameSink::Get());
+	h->AddEventSink<RE::TESContainerChangedEvent>(GameSink::Get());
 }
 }

@@ -2,16 +2,19 @@
 
 One hidden FACT record per A-Life faction (FormID 0x800 + index in enum Faction), relations mirrored from [relations]
 (ally = combat reaction 2, enemy = 1), plus ties to the vanilla analogue faction so vanilla and A-Life actors of the same
-kind do not fight each other. Masters: Skyrim.esm, Update.esm, Dawnguard.esm (same as ALife.esp).
+kind do not fight each other. Masters: Skyrim.esm, Update.esm, Dawnguard.esm, Dragonborn.esm (the Solstheim factions' vanilla ties).
 
 usage: python build_factions_esp.py [factions.ltx] [out.esp]
 """
 import struct, sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import esp
 
 FACTIONS = ["bandit", "forsworn", "imperial", "stormcloak", "thalmor", "wanderer", "hunter", "mercenary", "mage",
-            "necromancer", "vampire", "dawnguard", "silverhand", "vigilant", "caravan"]   # must match enum Faction order in Core.h
-MASTERS = ["Skyrim.esm", "Update.esm", "Dawnguard.esm"]
-OWN = 0x03000000          # load-order index of this plugin (after 3 masters)
+            "necromancer", "vampire", "dawnguard", "silverhand", "vigilant", "caravan",
+            "skaal", "redoran", "reaver"]   # must match enum Faction order in Core.h
+MASTERS = ["Skyrim.esm", "Update.esm", "Dawnguard.esm", "Dragonborn.esm"]   # every SE install has the three DLCs
+OWN = 0x04000000          # load-order index of this plugin (after 4 masters)
 BASE_ID = 0x800
 
 # vanilla analogue factions (allies of the A-Life faction)  [FormID with master index in the high byte]
@@ -26,9 +29,12 @@ VANILLA_ALLY = {
     "hunter":      [0x0004E509],                  # HunterFaction
     "mage":        [0x0001F259],                  # CollegeofWinterholdFaction
     "dawnguard":   [0x02014217],                  # DLC1DawnguardFaction
+    "skaal":       [0x03018F9A],                  # DLC2SkaalVillageCitizenFaction
+    "redoran":     [0x030195AD],                  # DLC2RavenRockGuardFaction
+    "reaver":      [0x0001BCC0],                  # BanditFaction (Dragonborn's Reavers are bandits)
 }
 # factions that are hostile to town guards
-VANILLA_ENEMY = {f: [0x00086EEE] for f in ("bandit", "forsworn", "necromancer", "vampire", "silverhand")}   # IsGuardFaction
+VANILLA_ENEMY = {f: [0x00086EEE] for f in ("bandit", "forsworn", "necromancer", "vampire", "silverhand", "reaver")}   # IsGuardFaction (Raven Rock's guards too)
 
 
 def parse_relations(path):
@@ -82,7 +88,7 @@ def build(ltx, out):
         recs.append(record("FACT", fid(f), subs))
     grup_body = b"".join(recs)
     grup = b"GRUP" + struct.pack("<I", 24 + len(grup_body)) + b"FACT" + struct.pack("<iHHHH", 0, 0, 0, 0, 0) + grup_body
-    hedr = sub("HEDR", struct.pack("<fII", 1.71, len(recs), BASE_ID + len(FACTIONS)))
+    hedr = sub("HEDR", struct.pack("<fII", 1.71, esp.hedr_count(grup), BASE_ID + len(FACTIONS)))   # records plus GRUPs, as the CK counts
     tes4_subs = [hedr, sub("CNAM", zstr("A-Life")), sub("SNAM", zstr("A-Life factions (generated from factions.ltx)"))]
     for m in MASTERS:
         tes4_subs += [sub("MAST", zstr(m)), sub("DATA", struct.pack("<Q", 0))]

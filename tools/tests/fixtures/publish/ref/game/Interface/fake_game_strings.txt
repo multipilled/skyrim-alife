@@ -1,0 +1,2 @@
+SYNTHETIC GAME DATA FIXTURE for tools/tests/test_publish_lint.py.
+Stands in for a file from the game's Data folder; it is not one.

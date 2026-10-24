@@ -37,6 +37,15 @@ def walk(buf, start=0, end=None, path=()):
             yield r
             o += 24 + size
 
+def hedr_count(buf, start=0, end=None):
+    """Records plus GRUPs below the TES4 header: the HEDR numRecords value the Creation Kit and the DLC masters write."""
+    o = start; end = len(buf) if end is None else end; n = 0
+    while o < end:
+        size = struct.unpack_from("<I", buf, o + 4)[0]; n += 1
+        if buf[o:o+4] == b"GRUP": n += hedr_count(buf, o + 24, o + size)
+        o += size if buf[o:o+4] == b"GRUP" else 24 + size
+    return n
+
 def load(path):
     with open(path, "rb") as f: return f.read()
 

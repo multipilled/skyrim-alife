@@ -1,0 +1,42 @@
+; Race mix of new squad members, per faction and per worldspace (T24). A member's race is drawn once, when its squad is made, from
+; the squad's home worldspace; existing members never change race. Weights are integers, and the ORDER is part of the draw: keep
+; it when editing, or the same seed gives other races.
+; Races: nord, imperial, breton, redguard, altmer, bosmer, dunmer, orsimer, argonian, khajiit, nordvampire, imperialvampire,
+; bretonvampire, dunmervampire (the races the actor pool has faces for, tools/esp/build_esp.py).
+; A faction missing from a worldspace section uses its [races] table; a faction missing from [races] uses the wanderer mix.
+
+[races]   ; Tamriel (and its child worldspaces): exactly the tables the plugin used before T24
+bandit      = nord:40, imperial:12, redguard:10, breton:8, dunmer:8, orsimer:8, bosmer:5, khajiit:4, argonian:3, altmer:2
+forsworn    = breton:90, nord:10
+imperial    = imperial:45, nord:20, redguard:15, breton:12, bosmer:5, altmer:3
+stormcloak  = nord:75, dunmer:5, redguard:5, breton:5, orsimer:5, khajiit:3, argonian:2
+thalmor     = altmer:88, bosmer:12
+wanderer    = nord:25, imperial:12, breton:12, redguard:10, altmer:8, bosmer:8, dunmer:10, orsimer:6, khajiit:5, argonian:4
+hunter      = nord:50, bosmer:15, imperial:10, redguard:8, breton:6, orsimer:5, khajiit:3, argonian:3
+mercenary   = nord:25, redguard:20, imperial:15, orsimer:15, breton:10, dunmer:5, khajiit:5, argonian:5
+mage        = breton:30, altmer:25, dunmer:20, imperial:15, nord:5, redguard:5
+necromancer = dunmer:30, breton:25, imperial:15, altmer:15, nord:10, redguard:5
+vampire     = nordvampire:2, imperialvampire:1, bretonvampire:1, dunmervampire:2
+dawnguard   = nord:35, imperial:25, redguard:15, breton:15, orsimer:10
+silverhand  = nord:55, imperial:15, breton:10, redguard:10, orsimer:10
+vigilant    = nord:35, imperial:30, breton:20, redguard:10, altmer:5
+caravan     = khajiit:1
+skaal       = nord:1
+redoran     = dunmer:1
+reaver      = dunmer:40, nord:30, imperial:8, redguard:8, orsimer:6, breton:4, argonian:2, khajiit:2
+
+; Solstheim (Dragonborn), the user (Oct 18): "races in Solesthiem favors dark elves among others with less high elves and wood elves".
+; Dunmer first (Raven Rock and the ash wastes, ~50-60%); Nords next (Skaal, miners, Raven Rock settlers); some Imperials (the East
+; Empire Company); Bretons, Redguards and Orcs low; Altmer and Bosmer rare (~2% each); Argonians and Khajiit rare.
+; Skaal, Redoran and Reavers keep their [races] tables; caravans stay Khajiit; Forsworn, Thalmor and the Civil War sides do not live here.
+[races.DLC2SolstheimWorld]
+bandit      = dunmer:54, nord:20, imperial:8, breton:4, redguard:3, orsimer:3, argonian:2, khajiit:2, altmer:2, bosmer:2
+wanderer    = dunmer:52, nord:20, imperial:9, breton:5, redguard:4, orsimer:2, argonian:2, khajiit:2, altmer:2, bosmer:2
+hunter      = dunmer:50, nord:30, imperial:6, breton:3, redguard:3, orsimer:2, argonian:1, khajiit:1, altmer:2, bosmer:2
+mercenary   = dunmer:50, nord:20, imperial:8, redguard:6, orsimer:5, breton:3, argonian:2, khajiit:2, altmer:2, bosmer:2
+mage        = dunmer:60, nord:12, imperial:10, breton:10, redguard:2, altmer:2, bosmer:2, argonian:1, khajiit:1
+necromancer = dunmer:58, nord:13, breton:11, imperial:10, redguard:3, altmer:2, bosmer:1, argonian:1, khajiit:1
+vampire     = dunmervampire:6, nordvampire:2, imperialvampire:1, bretonvampire:1
+dawnguard   = dunmer:50, nord:25, imperial:10, breton:6, redguard:5, orsimer:4
+silverhand  = dunmer:50, nord:30, imperial:8, breton:5, redguard:4, orsimer:3
+vigilant    = dunmer:50, nord:20, imperial:15, breton:10, redguard:3, altmer:2

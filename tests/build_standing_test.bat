@@ -7,6 +7,6 @@ set SRC=%~dp0..
 if "%OUT%"=="" set OUT=%~dp0..\..\build
 if not exist %OUT%\standing_obj mkdir %OUT%\standing_obj
 cl /nologo /std:c++20 /O2 /EHsc /W3 /utf-8 /I%SRC%\include ^
-  %SRC%\src\core\Core.cpp %SRC%\src\core\Ltx.cpp %SRC%\src\core\Config.cpp %SRC%\src\core\Standing.cpp ^
+  %SRC%\src\core\Core.cpp %SRC%\src\core\Ltx.cpp %SRC%\src\core\Config.cpp %SRC%\src\core\Difficulty.cpp %SRC%\src\core\Compat.cpp %SRC%\src\core\Standing.cpp ^
   %SRC%\tests\standing_test.cpp /Fe:%OUT%\standing_test.exe /Fo:%OUT%\standing_obj\
 exit /b %errorlevel%

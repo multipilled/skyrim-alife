@@ -1,3 +1,4 @@
+#include "ALife/Companions.h"
 #include "ALife/Forms.h"
 #include "ALife/Jobs.h"
 #include "ALife/Log.h"
@@ -6,6 +7,8 @@
 #include "ALife/Settings.h"
 #include "ALife/Systems.h"
 #include "ALife/Talk.h"
+#include "ALife/StashesPlugin.h"
+#include "ALife/Wounded.h"
 
 // Plugin host of the Anomaly-style board: builds the map, creates members, feeds the sim the game clock, and keeps the
 // on-screen systems (Online) in step with it.
@@ -61,63 +64,13 @@ namespace {
 		}
 	}
 
-	struct W { RaceId race; int w; };
-	RaceId Weighted(const W* tbl, int n, Rng& r)
-	{
-		int tot = 0;
-		for (int i = 0; i < n; ++i) tot += tbl[i].w;
-		int x = r.index(tot);
-		for (int i = 0; i < n; ++i) { if (x < tbl[i].w) return tbl[i].race; x -= tbl[i].w; }
-		return tbl[0].race;
-	}
-	// Race mix per faction (all drawn from the 14 races the pool has faces for).
-	RaceId RollRace(Faction f, Rng& r)
-	{
-		static const W bandit[] = { { RaceId::Nord, 40 }, { RaceId::Imperial, 12 }, { RaceId::Redguard, 10 }, { RaceId::Breton, 8 }, { RaceId::Dunmer, 8 },
-			{ RaceId::Orsimer, 8 }, { RaceId::Bosmer, 5 }, { RaceId::Khajiit, 4 }, { RaceId::Argonian, 3 }, { RaceId::Altmer, 2 } };
-		static const W forsworn[] = { { RaceId::Breton, 90 }, { RaceId::Nord, 10 } };
-		static const W imperial[] = { { RaceId::Imperial, 45 }, { RaceId::Nord, 20 }, { RaceId::Redguard, 15 }, { RaceId::Breton, 12 }, { RaceId::Bosmer, 5 }, { RaceId::Altmer, 3 } };
-		static const W storm[] = { { RaceId::Nord, 75 }, { RaceId::Dunmer, 5 }, { RaceId::Redguard, 5 }, { RaceId::Breton, 5 }, { RaceId::Orsimer, 5 }, { RaceId::Khajiit, 3 }, { RaceId::Argonian, 2 } };
-		static const W thalmor[] = { { RaceId::Altmer, 88 }, { RaceId::Bosmer, 12 } };
-		static const W hunter[] = { { RaceId::Nord, 50 }, { RaceId::Bosmer, 15 }, { RaceId::Imperial, 10 }, { RaceId::Redguard, 8 }, { RaceId::Breton, 6 },
-			{ RaceId::Orsimer, 5 }, { RaceId::Khajiit, 3 }, { RaceId::Argonian, 3 } };
-		static const W adv[] = { { RaceId::Nord, 25 }, { RaceId::Imperial, 12 }, { RaceId::Breton, 12 }, { RaceId::Redguard, 10 }, { RaceId::Altmer, 8 },
-			{ RaceId::Bosmer, 8 }, { RaceId::Dunmer, 10 }, { RaceId::Orsimer, 6 }, { RaceId::Khajiit, 5 }, { RaceId::Argonian, 4 } };
-		static const W merc[] = { { RaceId::Nord, 25 }, { RaceId::Redguard, 20 }, { RaceId::Imperial, 15 }, { RaceId::Orsimer, 15 }, { RaceId::Breton, 10 },
-			{ RaceId::Dunmer, 5 }, { RaceId::Khajiit, 5 }, { RaceId::Argonian, 5 } };
-		static const W mage[] = { { RaceId::Breton, 30 }, { RaceId::Altmer, 25 }, { RaceId::Dunmer, 20 }, { RaceId::Imperial, 15 }, { RaceId::Nord, 5 }, { RaceId::Redguard, 5 } };
-		static const W necro[] = { { RaceId::Dunmer, 30 }, { RaceId::Breton, 25 }, { RaceId::Imperial, 15 }, { RaceId::Altmer, 15 }, { RaceId::Nord, 10 }, { RaceId::Redguard, 5 } };
-		static const W vamp[] = { { RaceId::NordVampire, 2 }, { RaceId::ImperialVampire, 1 }, { RaceId::BretonVampire, 1 }, { RaceId::DunmerVampire, 2 } };
-		static const W dawn[] = { { RaceId::Nord, 35 }, { RaceId::Imperial, 25 }, { RaceId::Redguard, 15 }, { RaceId::Breton, 15 }, { RaceId::Orsimer, 10 } };
-		static const W silver[] = { { RaceId::Nord, 55 }, { RaceId::Imperial, 15 }, { RaceId::Breton, 10 }, { RaceId::Redguard, 10 }, { RaceId::Orsimer, 10 } };
-		static const W vigil[] = { { RaceId::Nord, 35 }, { RaceId::Imperial, 30 }, { RaceId::Breton, 20 }, { RaceId::Redguard, 10 }, { RaceId::Altmer, 5 } };
-		static const W khajiit[] = { { RaceId::Khajiit, 1 } };
-#define ALIFE_TBL(t) return Weighted(t, int(std::size(t)), r)
-		switch (f) {
-		case Faction::Bandit: ALIFE_TBL(bandit);
-		case Faction::Forsworn: ALIFE_TBL(forsworn);
-		case Faction::Imperial: ALIFE_TBL(imperial);
-		case Faction::Stormcloak: ALIFE_TBL(storm);
-		case Faction::Thalmor: ALIFE_TBL(thalmor);
-		case Faction::Hunter: ALIFE_TBL(hunter);
-		case Faction::Mercenary: ALIFE_TBL(merc);
-		case Faction::Mage: ALIFE_TBL(mage);
-		case Faction::Necromancer: ALIFE_TBL(necro);
-		case Faction::Vampire: ALIFE_TBL(vamp);
-		case Faction::Dawnguard: ALIFE_TBL(dawn);
-		case Faction::SilverHand: ALIFE_TBL(silver);
-		case Faction::Vigilant: ALIFE_TBL(vigil);
-		case Faction::Caravan: ALIFE_TBL(khajiit);
-		default: ALIFE_TBL(adv);
-		}
-#undef ALIFE_TBL
-	}
+	// Race mix per faction and worldspace: config/races.ltx through Config::RollRace (T24; the old tables are its defaults).
 
 	float FemaleChance(Faction f)
 	{
 		switch (f) {
-		case Faction::Bandit: case Faction::SilverHand: return 0.28f;
-		case Faction::Imperial: case Faction::Stormcloak: case Faction::Dawnguard: return 0.3f;
+		case Faction::Bandit: case Faction::SilverHand: case Faction::Reaver: return 0.28f;
+		case Faction::Imperial: case Faction::Stormcloak: case Faction::Dawnguard: case Faction::Redoran: return 0.3f;
 		case Faction::Thalmor: case Faction::Mage: return 0.5f;
 		default: return 0.4f;
 		}
@@ -136,6 +89,9 @@ namespace {
 		case Faction::Vampire: return "Elder";
 		case Faction::Vigilant: return "Brother";
 		case Faction::Caravan: return "Merchant";
+		case Faction::Skaal: return "Huntsman";
+		case Faction::Redoran: return "Captain";
+		case Faction::Reaver: return "Chief";
 		default: return "";
 		}
 	}
@@ -170,12 +126,16 @@ namespace {
 		}
 		Member MakeMember(Faction f, Tier tier, Role role, int level, bool leader, Rng& r, std::uint64_t id) override
 		{
+			return MakeMemberIn(0, f, tier, role, level, leader, r, id);
+		}
+		Member MakeMemberIn(int ws, Faction f, Tier tier, Role role, int level, bool leader, Rng& r, std::uint64_t id) override
+		{
 			Member m;
 			m.id = id;
 			m.faction = f;
 			m.role = role;
 			m.level = std::max(1, level);
-			m.race = RollRace(f, r);
+			m.race = gCfg.RollRace(f, ws, r);   // the squad's home worldspace at creation; existing members keep theirs
 			m.sex = r.chance(FemaleChance(f)) ? Sex::Female : Sex::Male;
 			m.name = MakeName(m.race, m.sex, r);
 			if (leader) m.title = LeaderTitle(f);
@@ -187,7 +147,11 @@ namespace {
 			return m;
 		}
 		float MemberPower(const Member& m) const override { return Combat::MemberPower(m); }
-		void OnMemberKilled(Group& g, Member& m, Group*, Member*) override { OnGroupMemberDied(g, m); }
+		void OnMemberKilled(Group& g, Member& m, Group* kg, Member*) override
+		{
+			StashPlugin::OnOfflineKill(g, m, kg);   // a stash note passes to the winners (docs/STASHES.md)
+			OnGroupMemberDied(g, m);
+		}
 		void LootBodies(Group& w, std::vector<Member>& dead) override { Economy::LootBodies(w, dead); }
 		void GrowMember(Member& m, float xp, Rng& r) override { Economy::Grow(m, xp, r); }
 		void ScaleMember(Member& m, int level) override
@@ -318,6 +282,8 @@ namespace {
 		gBoard->Reset(Hours());
 		gBoard->rng = Rng(Mix64(std::uint64_t(Hours() * 100) ^ 0xA11FE));
 		gBoard->worldSeed = Mix64(std::uint64_t(Hours() * 100) ^ 0x5EED);
+		CivilWar::Reset();   // Reset put the places back to their start owners: read the war again before the first squads
+		CivilWar::Tick(*gBoard, 0.f);
 		gBoard->StartFill();
 		gFilled = true;
 		Log::Line("[sim] world populated: " + std::to_string(gBoard->squads.size()) + " squads on " + std::to_string(Graph::Nodes().size()) + " smart terrains");
@@ -337,6 +303,10 @@ namespace {
 		Scavenge::Reset();
 		Talk::Reset();
 		Jobs::Reset();
+		Companions::Reset();
+		Wounded::Reset();
+		StashPlugin::Reset();
+		CivilWar::Reset();
 	}
 
 	void DrainNews(float a_dt)
@@ -400,10 +370,45 @@ void AddPlayerRel(Faction f, float d)
 	v = std::clamp(v + d, -gCfg.standing.goodwillMax, gCfg.standing.goodwillMax);
 }
 
+// Skyrim's difficulty (docs/DIFFICULTY.md section 5): the player's game state first, SkyrimPrefs.ini iDifficulty when it is not there.
+int GameDifficulty(int* a_pref)
+{
+	int pref = -1;
+	if (auto* ini = RE::INIPrefSettingCollection::GetSingleton())
+		if (auto* st = ini->GetSetting("iDifficulty:GamePlay")) pref = st->data.i;
+	if (a_pref) *a_pref = pref;
+	if (auto* pc = RE::PlayerCharacter::GetSingleton()) {
+		const int d = pc->GetGameStatsData().difficulty;
+		if (d >= 0 && d < kGameDifficulties) return d;
+	}
+	return pref >= 0 && pref < kGameDifficulties ? pref : kAdept;
+}
+
+// Re-runs ApplyDifficulty when the game difficulty or a slider changed (a_force: always); one log line per change.
+void RefreshDifficulty(bool a_force)
+{
+	static int lastGame = -1;
+	static DifficultyChoice lastChoice;
+	static int lastActors = -1;
+	int pref = -1;
+	const int game = GameDifficulty(&pref);
+	const auto& choice = Settings::Get().diff;
+	if (!a_force && game == lastGame && choice == lastChoice && gCfg.compat.onlineActors == lastActors) return;
+	const DifficultyState before = gCfg.diff;
+	gCfg.ApplyDifficulty(game, choice);
+	const bool changed = lastGame < 0 || game != lastGame || before.mult != gCfg.diff.mult || before.sizeCap != gCfg.diff.sizeCap || before.followGame != gCfg.diff.followGame;
+	lastGame = game;
+	lastChoice = choice;
+	lastActors = gCfg.compat.onlineActors;
+	if (changed) Log::Line("[difficulty] " + gCfg.diff.Describe() + " (pref=" + std::to_string(pref) + ")");
+}
+
 void ApplySettings()
 {
 	const auto& s = Settings::Get();
-	gCfg.populationFactor = s.populationScale;
+	ApplyCompatBudget(gCfg.compatCfg, gCfg.compat, s.compatBudget);   // MCM "Patrol mods" (docs/COMPAT.md)
+	gCfg.populationFactor = gCfg.populationLtx * gCfg.compat.population;   // the population slider is a difficulty channel now (Diff(Population))
+	RefreshDifficulty(true);
 	gCfg.ocsMode = s.ocsMode <= 0 ? OcsMode::Off : s.ocsMode >= 2 ? OcsMode::Full : OcsMode::Smarts;
 	gCfg.news = s.news;
 	gCfg.dynamicRelations = s.dynamicRelations;   // off: factions.ltx rules; the live matrix is kept, so turning it back on resumes
@@ -444,8 +449,13 @@ bool ReleaseStickyFor(const Member& a_newcomer)
 	return true;
 }
 
-void OnGroupMemberDied(Group&, Member& m)
+void OnGroupMemberDied(Group& g, Member& m)
 {
+	if (gBoard && gBoard->IsDragon(g)) {   // docs/DRAGONS.md: a dragon that dies on screen restarts the respawn timer (and counts as the player's)
+		gBoard->dragonLast = gBoard->now;
+		if (g.online) ++gBoard->dragonKills;
+		Log::Line("[dragon] #" + std::to_string(g.id) + " died" + (g.online ? " on screen" : "") + "; dragons killed on screen " + std::to_string(gBoard->dragonKills));
+	}
 	if (!m.sticky) {
 		Pool::Release(m);
 		return;
@@ -488,6 +498,8 @@ void OnActorKilled(RE::Actor* victim, RE::Actor* killer)
 	if (beast) vg = Creatures::GroupOf(victim, &vm);   // a monster squad's creature: no standing involved
 	if (!vg || !vm) return;
 	vm->health = 0;
+	if (!beast) Wounded::OnMemberDied(*vg, *vm, killer);   // a down member the player strikes is finished (docs/WOUNDED.md s3)
+	if (!beast) StashPlugin::OnActorKilled(*vg, *vm, victim);   // a stash note on the body (docs/STASHES.md)
 	std::string by = "something";
 	if (killer && killer->IsPlayerRef()) {
 		if (!beast) {
@@ -536,6 +548,65 @@ void ApplyQueuedKills(RE::TESObjectCELL* a_cell)
 }
 
 // ---------------------------------------------------------------- lifecycle
+// ---------------------------------------------------------------- patrol mods (docs/COMPAT.md)
+namespace {
+	std::vector<std::string> gLoadedPlugins;   // filenames, read once at data load
+
+	void ReadLoadedPlugins()
+	{
+		gLoadedPlugins.clear();
+		auto* dh = RE::TESDataHandler::GetSingleton();
+		if (!dh) return;
+		if (auto** mods = dh->GetLoadedMods())
+			for (std::uint32_t i = 0, n = dh->GetLoadedModCount(); i < n; ++i)
+				if (mods[i]) gLoadedPlugins.emplace_back(mods[i]->GetFilename());
+		if (auto** light = dh->GetLoadedLightMods())
+			for (std::uint32_t i = 0, n = dh->GetLoadedLightModCount(); i < n; ++i)
+				if (light[i]) gLoadedPlugins.emplace_back(light[i]->GetFilename());
+	}
+
+	// ALife faction record <-> vanilla faction reactions (runtime only, never saved): ALife Stormcloak squads fight a patrol
+	// mod's Legion soldiers, ALife Legion squads walk beside them. Skipped when the pair already has a reaction.
+	int AddReaction(RE::TESFaction* a_from, RE::TESForm* a_to, bool a_ally)
+	{
+		if (!a_from || !a_to) return 0;
+		for (auto* r : a_from->reactions)
+			if (r && r->form == a_to) return 0;
+		auto* r = RE::malloc<RE::GROUP_REACTION>();
+		if (!r) return 0;
+		r->form = a_to;
+		r->reaction = 0;
+		r->fightReaction = a_ally ? RE::FIGHT_REACTION::kAlly : RE::FIGHT_REACTION::kEnemy;
+		a_from->reactions.push_front(r);
+		return 1;
+	}
+
+	void ApplyCompat()
+	{
+		const auto& s = Settings::Get();
+		gCfg.compat = ResolveCompat(gCfg.compatCfg, gLoadedPlugins, s.compatBudget, s.compatHandover);
+		if (!gCfg.compat.Active()) {
+			Log::Line("[compat] no patrol mod detected (" + std::to_string(gLoadedPlugins.size()) + " plugins checked)");
+			return;
+		}
+		for (std::size_t i = 0; i < gCfg.compat.detected.size(); ++i) {
+			std::string name = gCfg.compat.detected[i];
+			for (auto& m : gCfg.compatCfg.mods) if (m.id == name) name = m.name;
+			Log::Line("[compat] detected " + name + " (" + gCfg.compat.matched[i] + ")");
+		}
+		int added = 0;
+		const auto& fr = Forms::R();
+		if (fr.factionsLoaded) {
+			for (auto& r : CompatReactions(gCfg)) {
+				auto* ext = RE::TESForm::LookupByID<RE::TESFaction>(r.external);
+				auto* own = fr.fFaction[int(r.alife)];
+				added += AddReaction(own, ext, r.ally) + AddReaction(ext, own, r.ally);
+			}
+		}
+		Log::Line("[compat] faction reactions added: " + std::to_string(added) + (fr.factionsLoaded ? "" : " (ALifeFactions.esp missing)"));
+	}
+}
+
 void OnDataLoaded()
 {
 	std::lock_guard l(gMx);
@@ -558,15 +629,30 @@ void OnDataLoaded()
 			}
 		gCfg.IndexCreatures();
 	}
+	ReadLoadedPlugins();
+	ApplyCompat();   // before the graph: handed-over forts are fixed when the smarts are built
 	ApplySettings();
 	Graph::Build(gCfg);
+	if (gCfg.compat.Active()) {
+		int handed = 0;
+		for (auto& n : Graph::Nodes()) handed += n.handedOver;
+		char buf[160];
+		std::snprintf(buf, sizeof(buf), "[compat] budget: %d groups / %d actors online, population x%.2f, patrols x%.2f; %d smarts handed over",
+			gCfg.compat.onlineGroups, gCfg.compat.onlineActors, gCfg.compat.population, gCfg.compat.patrolScale, handed);
+		Log::Line(buf);
+	}
 	Rep::Init();
 	Talk::Init();
 	Jobs::Init();
+	Companions::Init();
+	CivilWar::Init();
+	CampLife::Init();   // docs/CAMPLIFE.md: camp.ltx + camp_spots.ltx; needs the ALife.esp job markers (Forms::ResolveAll above)
 	if (!Graph::Ready()) { Log::Line("[sim] no smart terrains: A-Life stays idle"); return; }
 	Merchants::Init();
 	gBoard = std::make_unique<Board>(gCfg, Graph::W(), gHost);
 	gBoard->Reset(Hours());
+	Wounded::Init();   // wounded.ltx; attaches Board::wounds (docs/WOUNDED.md)
+	StashPlugin::Init();   // stashes.ltx, the note and the marker quest (docs/STASHES.md)
 	Pool::Init();
 	Log::Line("[sim] ready: " + std::to_string(gCfg.squads.size()) + " squad types, " + std::to_string(Graph::Nodes().size()) + " smart terrains");
 }
@@ -575,6 +661,8 @@ void OnNewGame()
 {
 	std::lock_guard l(gMx);
 	ResetState();
+	Settings::ReloadDifficulty();   // a new game starts with the ini's sliders, not the last loaded save's
+	ApplySettings();
 	Creatures::ClearSweep();
 	Patch::Reload();
 	Pool::ResetScan();
@@ -613,6 +701,7 @@ void OnPostLoad()
 		}
 	}
 	Online::Reset();
+	CivilWar::Reset();   // the save's war state is read on the next tick, before anything steps
 	gGateHold = 0.f;
 	Pool::ResetScan();
 	Pool::Resolve("postLoad");
@@ -683,10 +772,15 @@ namespace {
 			const std::string verb = l.substr(0, sp), arg = sp == std::string::npos ? std::string() : l.substr(sp + 1);
 			if (verb == "console") { RunConsole(arg); continue; }
 			if (verb == "status") { SKSE::GetTaskInterface()->AddTask([] { DebugStatus(); }); continue; }   // the Numpad1 dump (takes the sim lock)
+			if (verb == "cw") { SKSE::GetTaskInterface()->AddTask([arg] { CivilWar::Debug(arg); }); continue; }   // T10: hold owners, war, gates; "cw flip <hold> <1|2>"
+			if (verb == "camp") { SKSE::GetTaskInterface()->AddTask([] { std::lock_guard l(gMx); Log::Line(CampLife::Debug()); }); continue; }   // M5h: jobs on screen
 			if (verb == "hunters") { SKSE::GetTaskInterface()->AddTask([] { DebugHunters(); }); continue; }   // M5g: lair hunters, targets, parts
 			if (verb == "ff") { SKSE::GetTaskInterface()->AddTask([] { DebugFastForward(); }); continue; }    // the Numpad2 day fast-forward
 			if (verb == "monster") { StartMonsterTrip(arg); continue; }   // "monster <draugr|falmer|wildlife> [wild]": see MonsterTripTick
 			if (verb == "task") { SKSE::GetTaskInterface()->AddTask([arg] { Jobs::Debug(arg); }); continue; }   // docs/TASKS.md: list, offer <type>, accept, kill, where
+			if (verb == "comp") { SKSE::GetTaskInterface()->AddTask([arg] { Companions::Debug(arg); }); continue; }   // docs/COMPANIONS.md
+			if (verb == "wound") { SKSE::GetTaskInterface()->AddTask([arg] { Wounded::Debug(arg); }); continue; }    // docs/WOUNDED.md
+			if (verb == "stash") { SKSE::GetTaskInterface()->AddTask([arg] { StashPlugin::Debug(arg); }); continue; }   // docs/STASHES.md
 			if (verb == "dump") {   // what the MCM's Standing and News pages would show
 				Rep::PumpMenuCache(99.f);
 				Log::Line("[mcm] standing page: " + std::to_string(Rep::MenuCount()) + " rows, status: " + Rep::MenuStatus());
@@ -853,6 +947,9 @@ namespace {
 		else if (verb == "talk") DebugTalk();
 		else if (verb == "choose") Talk::DebugChoose(arg);                                            // pick a topic in the open conversation
 		else if (verb == "task") Jobs::Debug(arg);                                                    // docs/TASKS.md
+		else if (verb == "comp") Companions::Debug(arg);                                              // docs/COMPANIONS.md
+		else if (verb == "wound") Wounded::Debug(arg);                                                // docs/WOUNDED.md
+		else if (verb == "stash") StashPlugin::Debug(arg);                                            // docs/STASHES.md
 		else if (verb == "done") Log::Line("[debug] lab queue done");
 		else Log::Line("[debug] lab: unknown item " + item);
 	}
@@ -1090,9 +1187,23 @@ void MainTick(float a_realDt)
 			else if (!Settings::Get().bDebug && was) Log::Open();
 		}
 	}
+	{   // difficulty (docs/DIFFICULTY.md): debug runs may set the game's own value once (iDebugDifficulty), then follow it every tick
+		static int debugSet = -1;   // the value last written: a hand edit of the ini mid-run switches again (Novice, then Legendary)
+		const auto& st = Settings::Get();
+		if (st.bDebug && st.iDebugDifficulty >= 0 && st.iDebugDifficulty != debugSet) {
+			debugSet = st.iDebugDifficulty;
+			pc->GetGameStatsData().difficulty = st.iDebugDifficulty;
+			if (auto* ini = RE::INIPrefSettingCollection::GetSingleton())
+				if (auto* s = ini->GetSetting("iDifficulty:GamePlay")) s->data.i = st.iDebugDifficulty;
+			Log::Line("[difficulty] debug: game difficulty set to " + std::to_string(st.iDebugDifficulty) + " (" + GameDifficultyName(st.iDebugDifficulty) + ")");
+		}
+		RefreshDifficulty(false);
+	}
 	UpdateGate(a_realDt);
+	CivilWar::Tick(*gBoard, a_realDt);   // hold owners, the war's end and faction gates before populating or stepping (docs/CIVILWAR.md)
 	if (gP.gateOpened && !gFilled) Populate();
 	if (!gFilled) return;
+	Wounded::Attach();   // the wounded hook once the world is populated (first fill, a load, a new game); no-op once attached
 
 	const double now = Hours();
 	// a wait / sleep / fast travel leaves the board behind the clock: nobody is on screen until it caught up
@@ -1122,6 +1233,9 @@ void MainTick(float a_realDt)
 	Rep::PumpMenuCache(a_realDt);
 	Talk::Pump(a_realDt);
 	Jobs::Tick(a_realDt);
+	if (!MenuBlocksSpawns()) Companions::Tick(a_realDt);
+	if (!MenuBlocksSpawns()) Wounded::Tick(a_realDt);
+	if (!MenuBlocksSpawns()) StashPlugin::Tick(a_realDt);
 }
 
 // ---------------------------------------------------------------- debug (bDebug=1 hotkeys)
@@ -1144,6 +1258,21 @@ void DebugStatus()
 	  << " online=" << GroupsOnline() << " actors=" << ActorsLoaded() << " sticky=" << Pool::StickyUsed() << "/" << kStickyCap
 	  << " lag=" << (Hours() - b.now) << "h smarts=" << Graph::Nodes().size() << " battles=" << b.stats.battles << " retreats=" << b.stats.retreats
 	  << " controlChanges=" << b.stats.controlChanges << " pool=" << Pool::ResolvedCount() << "/" << kPoolSize << "\n";
+	{   // T21 (docs/DIFFICULTY.md): what the difficulty is doing to the world right now
+		int sq = 0, mem = 0, monsters = 0;
+		double lvl = 0;
+		for (auto& g : b.squads) {
+			if (gCfg.IsMonster(g.faction)) { ++monsters; continue; }
+			++sq;
+			for (auto& m : g.members) if (m.alive()) { ++mem; lvl += double(m.level); }
+		}
+		int pref = -1;
+		const int game = GameDifficulty(&pref);
+		char buf[200];
+		std::snprintf(buf, sizeof(buf), "  difficulty: game %d pref %d; people squads %d, mean size %.2f, mean level %.1f (player %d); monster squads %d\n  ",
+			game, pref, sq, sq ? double(mem) / sq : 0.0, mem ? lvl / mem : 0.0, gHost.PlayerLevel(), monsters);
+		o << buf << gCfg.diff.Describe() << "\n";
+	}
 	for (int f = 0; f < kFactionCount; ++f)
 		o << "  " << FactionId(Faction(f)) << ": squads=" << b.SquadCount(Faction(f)) << " members=" << b.MemberCount(Faction(f))
 		  << " spawned=" << b.stats.spawned[f] << " wiped=" << b.stats.wiped[f] << " playerRel=" << PlayerRel(Faction(f)) << "\n";
@@ -1260,7 +1389,8 @@ void DebugScenario()
 	if (!pc || Forms::WsIndex(pc->GetWorldspace()) < 0) { Log::Line("[debug] scenario: the player must be in the Tamriel or Solstheim exterior"); return; }
 	const int pws = Forms::WsIndex(pc->GetWorldspace());
 	const char* section = kSections[idx++ % (sizeof(kSections) / sizeof(kSections[0]))];
-	Online::SendAllOffline(true);
+	for (auto& og : gBoard->squads)   // room on screen; companions stay with the player
+		if (og.online && !Companions::Has(og.id)) Online::SendOffline(og, true);
 	const auto pp = pc->GetPosition();
 	const float yaw = pc->GetAngleZ();
 	const auto node = Graph::Nearest(pp.x, pp.y, pws);
@@ -1287,20 +1417,21 @@ void DebugScenario()
 std::uint64_t DebugScenarioGroup() { return gScenarioGroup; }
 
 // Numpad7: talk to the last scenario squad as if the player had pressed Activate on its leader (for testing the dialogue).
-void DebugTalk()
+void DebugTalk() { DebugTalkTo(gScenarioGroup); }
+
+void DebugTalkTo(std::uint64_t a_gid)
 {
 	std::lock_guard l(gMx);
 	auto* pc = RE::PlayerCharacter::GetSingleton();
 	if (!pc || !gBoard) return;
-	Group* g = gScenarioGroup ? gBoard->Find(gScenarioGroup) : nullptr;
-	if (!g || !g->online) { Log::Line("[debug] talk: no scenario squad is online"); return; }
+	Group* g = a_gid ? gBoard->Find(a_gid) : nullptr;
+	if (!g || !g->online) { Log::Line("[debug] talk: squad #" + std::to_string(a_gid) + " is not online"); return; }
 	for (auto& m : g->members) {
 		auto* a = m.alive() ? Pool::ActorOf(m) : nullptr;
 		if (!a || a->IsDead()) continue;
 		int mode = 0, toll = 0;
 		Behavior::TalkSituation(*g, mode, toll);
-		Talk::Publish(mode, toll);
-		Jobs::PublishFor(mode == Talk::kGreet ? g : nullptr);
+		Talk::PublishSquad(g, mode, toll);   // the same situation the crosshair pump publishes (jobs in companion mode too: W3)
 		Talk::Hold(5.f);   // the engine reads the situation a frame after Activate
 		Log::Line(std::string("[debug] talk: ") + FactionId(g->faction) + " " + m.name + " mode=" + std::to_string(mode) + " toll=" + std::to_string(toll));
 		Log::Line(std::string("[debug] talk: activationBlocked=") + (a->IsActivationBlocked() ? "1" : "0") + " canTalk=" + (a->CanTalkToPlayer() ? "1" : "0") +

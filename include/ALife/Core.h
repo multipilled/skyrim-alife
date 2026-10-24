@@ -24,14 +24,17 @@ enum class Faction : std::uint8_t
 {
 	Bandit = 0, Forsworn, Imperial, Stormcloak, Thalmor, Wanderer, Hunter, Mercenary, Mage,
 	Necromancer, Vampire, Dawnguard, SilverHand, Vigilant, Caravan,
+	Skaal, Redoran, Reaver,         // Solstheim (Dragonborn): the Skaal, House Redoran's guard, the Reavers
 	Wildlife, Draugr, Falmer, Troll, Spriggan, Zombie,
 	Hound, Werebeast, Riekling, Spirit, Hagraven, Giant, Dwemer,   // M4b
+	Dragon,                         // M4c (docs/DRAGONS.md): appended, so every saved faction index keeps its value
 	COUNT
 };
 inline constexpr int kFactionCount = int(Faction::COUNT);
 inline constexpr int kHumanFactionCount = int(Faction::Wildlife);   // factions with pool actors, standing, dialogue (ALifeFactions.esp)
 inline constexpr bool IsHumanFaction(Faction a_f) { return int(a_f) < kHumanFactionCount; }
 inline constexpr std::uint8_t kNoFaction = 255;
+// Saves from before the Solstheim factions numbered the monsters from 15: the shift lives in ALife/SaveFormat.h (FactionIndexOf).
 const char* FactionId(Faction a_f);        // short id used in .ltx files ("imperial")
 const char* FactionName(Faction a_f);      // display name ("Imperial Legion")
 Faction FactionFromId(const std::string& a_id, bool* a_ok = nullptr);
@@ -41,6 +44,8 @@ const char* TierName(Tier a_t);
 
 enum class Sex : std::uint8_t { Male = 0, Female = 1 };
 
+inline constexpr int kWorldspaces = 2;   // 0 Tamriel (and its child worldspaces), 1 Solstheim
+
 enum class RaceId : std::uint8_t
 {
 	Nord = 0, Imperial, Breton, Redguard, Altmer, Bosmer, Dunmer, Orsimer, Argonian, Khajiit,
@@ -48,6 +53,9 @@ enum class RaceId : std::uint8_t
 	COUNT
 };
 bool IsVampireRace(RaceId a_r);
+const char* RaceIdName(RaceId a_r);                                     // races.ltx id ("dunmer", "dunmervampire")
+RaceId RaceFromId(const std::string& a_id, bool* a_ok = nullptr);
+inline constexpr const char* kWorldspaceIds[kWorldspaces] = { "Tamriel", "DLC2SolstheimWorld" };   // races.ltx [races.<id>] overrides
 
 // Skill indices match RE::ActorValue order kOneHanded..kEnchanting (6..23)
 enum Skill : std::uint8_t
@@ -134,9 +142,9 @@ struct RespawnParam
 	std::vector<std::string> squads;      // squad section names ("bandit_advanced")
 	float num{ 1 };                       // max squads of this entry alive at once (fractions = spawn chance)
 	std::uint8_t faction{ kNoFaction };   // only when the smart is faction controlled: spawn only for the controlling faction
+	bool owner{ false };                  // "faction = owner": follows the place's owner when its hold changes side (docs/CIVILWAR.md)
 };
 
-inline constexpr int kWorldspaces = 2;   // 0 Tamriel (and its child worldspaces), 1 Solstheim
 
 struct GraphNode
 {
@@ -162,6 +170,8 @@ struct GraphNode
 	bool disabled{ false };
 	bool factionControlled{ false };
 	std::uint8_t defaultFaction{ kNoFaction };
+	bool holdAligned{ false };          // default_faction = hold: follows the hold's live Civil War owner (docs/CIVILWAR.md)
+	float ownerBonus{ 0 };              // the preset's "owner" priority, moved with defaultFaction
 	float respawnIdleHours{ 12.f };
 	float respawnRadius{ 10500.f };
 	std::vector<RespawnParam> respawn;
@@ -170,6 +180,8 @@ struct GraphNode
 	std::vector<FormID> cells;          // interior cells of a dungeon, boss cell last (activity layer: raids)
 	FormID bossCell{ 0 };
 	int vendors{ 0 };                   // merchants that trade here (activity layer)
+	bool handedOver{ false };           // a patrol mod garrisons it (docs/COMPAT.md): no ALife respawn, only its owner's side visits
+	float dragon{ 0 };                  // dragon place weight (docs/DRAGONS.md: lair, word wall, high wilderness); 0 = dragons never come
 	std::vector<std::uint32_t> edges;
 };
 
@@ -179,7 +191,7 @@ enum class Action : std::uint8_t { None = 0, Reach = 1, Stay = 2 };   // Anomaly
 struct Group
 {
 	std::uint64_t id{ 0 };
-	std::uint8_t ws{ 0 };                      // worldspace of the node it was made at; squads never change worldspace
+	std::uint8_t ws{ 0 };                      // worldspace of the node it was made at; squads never change worldspace (one exception: a companion dismissed in another worldspace, Party::Dismiss)
 	Faction faction{ Faction::Bandit };
 	Tier tier{ Tier::Novice };
 	std::string section;                       // squad description it was created from

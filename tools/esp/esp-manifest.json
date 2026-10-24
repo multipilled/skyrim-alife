@@ -1,0 +1,1500 @@
+{
+ "records": 390,
+ "nextObjectId": "0xBA6",
+ "pool": [
+  {
+   "local": "0xA00",
+   "ref": "0xB00",
+   "edid": "ALife_Pool_NordM01",
+   "race": "0x13746",
+   "sex": "M",
+   "face": "NordMalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA01",
+   "ref": "0xB01",
+   "edid": "ALife_Pool_NordM02",
+   "race": "0x13746",
+   "sex": "M",
+   "face": "NordMalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA02",
+   "ref": "0xB02",
+   "edid": "ALife_Pool_NordM03",
+   "race": "0x13746",
+   "sex": "M",
+   "face": "NordMalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA03",
+   "ref": "0xB03",
+   "edid": "ALife_Pool_NordM04",
+   "race": "0x13746",
+   "sex": "M",
+   "face": "NordMalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA04",
+   "ref": "0xB04",
+   "edid": "ALife_Pool_NordM05",
+   "race": "0x13746",
+   "sex": "M",
+   "face": "NordMalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA05",
+   "ref": "0xB05",
+   "edid": "ALife_Pool_NordM06",
+   "race": "0x13746",
+   "sex": "M",
+   "face": "NordMalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA06",
+   "ref": "0xB06",
+   "edid": "ALife_Pool_ImperialM01",
+   "race": "0x13744",
+   "sex": "M",
+   "face": "ImperialMalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA07",
+   "ref": "0xB07",
+   "edid": "ALife_Pool_ImperialM02",
+   "race": "0x13744",
+   "sex": "M",
+   "face": "ImperialMalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA08",
+   "ref": "0xB08",
+   "edid": "ALife_Pool_ImperialM03",
+   "race": "0x13744",
+   "sex": "M",
+   "face": "ImperialMalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA09",
+   "ref": "0xB09",
+   "edid": "ALife_Pool_ImperialM04",
+   "race": "0x13744",
+   "sex": "M",
+   "face": "ImperialMalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA0A",
+   "ref": "0xB0A",
+   "edid": "ALife_Pool_ImperialM05",
+   "race": "0x13744",
+   "sex": "M",
+   "face": "ImperialMalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA0B",
+   "ref": "0xB0B",
+   "edid": "ALife_Pool_ImperialM06",
+   "race": "0x13744",
+   "sex": "M",
+   "face": "ImperialMalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA0C",
+   "ref": "0xB0C",
+   "edid": "ALife_Pool_BretonM01",
+   "race": "0x13741",
+   "sex": "M",
+   "face": "BretonMalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA0D",
+   "ref": "0xB0D",
+   "edid": "ALife_Pool_BretonM02",
+   "race": "0x13741",
+   "sex": "M",
+   "face": "BretonMalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA0E",
+   "ref": "0xB0E",
+   "edid": "ALife_Pool_BretonM03",
+   "race": "0x13741",
+   "sex": "M",
+   "face": "BretonMalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA0F",
+   "ref": "0xB0F",
+   "edid": "ALife_Pool_BretonM04",
+   "race": "0x13741",
+   "sex": "M",
+   "face": "BretonMalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA10",
+   "ref": "0xB10",
+   "edid": "ALife_Pool_BretonM05",
+   "race": "0x13741",
+   "sex": "M",
+   "face": "BretonMalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA11",
+   "ref": "0xB11",
+   "edid": "ALife_Pool_BretonM06",
+   "race": "0x13741",
+   "sex": "M",
+   "face": "BretonMalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA12",
+   "ref": "0xB12",
+   "edid": "ALife_Pool_BretonM07",
+   "race": "0x13741",
+   "sex": "M",
+   "face": "BretonMalePreset07",
+   "variant": 0
+  },
+  {
+   "local": "0xA13",
+   "ref": "0xB13",
+   "edid": "ALife_Pool_BretonM08",
+   "race": "0x13741",
+   "sex": "M",
+   "face": "BretonMalePreset08",
+   "variant": 0
+  },
+  {
+   "local": "0xA14",
+   "ref": "0xB14",
+   "edid": "ALife_Pool_BretonM09",
+   "race": "0x13741",
+   "sex": "M",
+   "face": "BretonMalePreset09",
+   "variant": 0
+  },
+  {
+   "local": "0xA15",
+   "ref": "0xB15",
+   "edid": "ALife_Pool_BretonM10",
+   "race": "0x13741",
+   "sex": "M",
+   "face": "BretonMalePreset10",
+   "variant": 0
+  },
+  {
+   "local": "0xA16",
+   "ref": "0xB16",
+   "edid": "ALife_Pool_BretonM11",
+   "race": "0x13741",
+   "sex": "M",
+   "face": "BretonMalePreset01",
+   "variant": 1
+  },
+  {
+   "local": "0xA17",
+   "ref": "0xB17",
+   "edid": "ALife_Pool_BretonM12",
+   "race": "0x13741",
+   "sex": "M",
+   "face": "BretonMalePreset02",
+   "variant": 1
+  },
+  {
+   "local": "0xA18",
+   "ref": "0xB18",
+   "edid": "ALife_Pool_RedguardM01",
+   "race": "0x13748",
+   "sex": "M",
+   "face": "RedguardMalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA19",
+   "ref": "0xB19",
+   "edid": "ALife_Pool_RedguardM02",
+   "race": "0x13748",
+   "sex": "M",
+   "face": "RedguardMalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA1A",
+   "ref": "0xB1A",
+   "edid": "ALife_Pool_RedguardM03",
+   "race": "0x13748",
+   "sex": "M",
+   "face": "RedguardMalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA1B",
+   "ref": "0xB1B",
+   "edid": "ALife_Pool_RedguardM04",
+   "race": "0x13748",
+   "sex": "M",
+   "face": "RedguardMalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA1C",
+   "ref": "0xB1C",
+   "edid": "ALife_Pool_RedguardM05",
+   "race": "0x13748",
+   "sex": "M",
+   "face": "RedguardMalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA1D",
+   "ref": "0xB1D",
+   "edid": "ALife_Pool_RedguardM06",
+   "race": "0x13748",
+   "sex": "M",
+   "face": "RedguardMalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA1E",
+   "ref": "0xB1E",
+   "edid": "ALife_Pool_HighElfM01",
+   "race": "0x13743",
+   "sex": "M",
+   "face": "HighElfMalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA1F",
+   "ref": "0xB1F",
+   "edid": "ALife_Pool_HighElfM02",
+   "race": "0x13743",
+   "sex": "M",
+   "face": "HighElfMalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA20",
+   "ref": "0xB20",
+   "edid": "ALife_Pool_HighElfM03",
+   "race": "0x13743",
+   "sex": "M",
+   "face": "HighElfMalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA21",
+   "ref": "0xB21",
+   "edid": "ALife_Pool_HighElfM04",
+   "race": "0x13743",
+   "sex": "M",
+   "face": "HighElfMalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA22",
+   "ref": "0xB22",
+   "edid": "ALife_Pool_HighElfM05",
+   "race": "0x13743",
+   "sex": "M",
+   "face": "HighElfMalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA23",
+   "ref": "0xB23",
+   "edid": "ALife_Pool_HighElfM06",
+   "race": "0x13743",
+   "sex": "M",
+   "face": "HighElfMalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA24",
+   "ref": "0xB24",
+   "edid": "ALife_Pool_HighElfM07",
+   "race": "0x13743",
+   "sex": "M",
+   "face": "HighElfMalePreset07",
+   "variant": 0
+  },
+  {
+   "local": "0xA25",
+   "ref": "0xB25",
+   "edid": "ALife_Pool_HighElfM08",
+   "race": "0x13743",
+   "sex": "M",
+   "face": "HighElfMalePreset08",
+   "variant": 0
+  },
+  {
+   "local": "0xA26",
+   "ref": "0xB26",
+   "edid": "ALife_Pool_HighElfM09",
+   "race": "0x13743",
+   "sex": "M",
+   "face": "HighElfMalePreset09",
+   "variant": 0
+  },
+  {
+   "local": "0xA27",
+   "ref": "0xB27",
+   "edid": "ALife_Pool_HighElfM10",
+   "race": "0x13743",
+   "sex": "M",
+   "face": "HighElfMalePreset10",
+   "variant": 0
+  },
+  {
+   "local": "0xA28",
+   "ref": "0xB28",
+   "edid": "ALife_Pool_HighElfM11",
+   "race": "0x13743",
+   "sex": "M",
+   "face": "HighElfMalePreset01",
+   "variant": 1
+  },
+  {
+   "local": "0xA29",
+   "ref": "0xB29",
+   "edid": "ALife_Pool_HighElfM12",
+   "race": "0x13743",
+   "sex": "M",
+   "face": "HighElfMalePreset02",
+   "variant": 1
+  },
+  {
+   "local": "0xA2A",
+   "ref": "0xB2A",
+   "edid": "ALife_Pool_WoodElfM01",
+   "race": "0x13749",
+   "sex": "M",
+   "face": "WoodElfMalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA2B",
+   "ref": "0xB2B",
+   "edid": "ALife_Pool_WoodElfM02",
+   "race": "0x13749",
+   "sex": "M",
+   "face": "WoodElfMalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA2C",
+   "ref": "0xB2C",
+   "edid": "ALife_Pool_WoodElfM03",
+   "race": "0x13749",
+   "sex": "M",
+   "face": "WoodElfMalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA2D",
+   "ref": "0xB2D",
+   "edid": "ALife_Pool_WoodElfM04",
+   "race": "0x13749",
+   "sex": "M",
+   "face": "WoodElfMalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA2E",
+   "ref": "0xB2E",
+   "edid": "ALife_Pool_WoodElfM05",
+   "race": "0x13749",
+   "sex": "M",
+   "face": "WoodElfMalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA2F",
+   "ref": "0xB2F",
+   "edid": "ALife_Pool_WoodElfM06",
+   "race": "0x13749",
+   "sex": "M",
+   "face": "WoodElfMalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA30",
+   "ref": "0xB30",
+   "edid": "ALife_Pool_DarkElfM01",
+   "race": "0x13742",
+   "sex": "M",
+   "face": "DarkElfMalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA31",
+   "ref": "0xB31",
+   "edid": "ALife_Pool_DarkElfM02",
+   "race": "0x13742",
+   "sex": "M",
+   "face": "DarkElfMalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA32",
+   "ref": "0xB32",
+   "edid": "ALife_Pool_DarkElfM03",
+   "race": "0x13742",
+   "sex": "M",
+   "face": "DarkElfMalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA33",
+   "ref": "0xB33",
+   "edid": "ALife_Pool_DarkElfM04",
+   "race": "0x13742",
+   "sex": "M",
+   "face": "DarkElfMalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA34",
+   "ref": "0xB34",
+   "edid": "ALife_Pool_DarkElfM05",
+   "race": "0x13742",
+   "sex": "M",
+   "face": "DarkElfMalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA35",
+   "ref": "0xB35",
+   "edid": "ALife_Pool_DarkElfM06",
+   "race": "0x13742",
+   "sex": "M",
+   "face": "DarkElfMalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA36",
+   "ref": "0xB36",
+   "edid": "ALife_Pool_OrcM01",
+   "race": "0x13747",
+   "sex": "M",
+   "face": "OrcMalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA37",
+   "ref": "0xB37",
+   "edid": "ALife_Pool_OrcM02",
+   "race": "0x13747",
+   "sex": "M",
+   "face": "OrcMalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA38",
+   "ref": "0xB38",
+   "edid": "ALife_Pool_OrcM03",
+   "race": "0x13747",
+   "sex": "M",
+   "face": "OrcMalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA39",
+   "ref": "0xB39",
+   "edid": "ALife_Pool_OrcM04",
+   "race": "0x13747",
+   "sex": "M",
+   "face": "OrcMalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA3A",
+   "ref": "0xB3A",
+   "edid": "ALife_Pool_OrcM05",
+   "race": "0x13747",
+   "sex": "M",
+   "face": "OrcMalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA3B",
+   "ref": "0xB3B",
+   "edid": "ALife_Pool_OrcM06",
+   "race": "0x13747",
+   "sex": "M",
+   "face": "OrcMalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA3C",
+   "ref": "0xB3C",
+   "edid": "ALife_Pool_ArgonianM01",
+   "race": "0x13740",
+   "sex": "M",
+   "face": "ArgonianMalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA3D",
+   "ref": "0xB3D",
+   "edid": "ALife_Pool_ArgonianM02",
+   "race": "0x13740",
+   "sex": "M",
+   "face": "ArgonianMalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA3E",
+   "ref": "0xB3E",
+   "edid": "ALife_Pool_ArgonianM03",
+   "race": "0x13740",
+   "sex": "M",
+   "face": "ArgonianMalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA3F",
+   "ref": "0xB3F",
+   "edid": "ALife_Pool_ArgonianM04",
+   "race": "0x13740",
+   "sex": "M",
+   "face": "ArgonianMalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA40",
+   "ref": "0xB40",
+   "edid": "ALife_Pool_ArgonianM05",
+   "race": "0x13740",
+   "sex": "M",
+   "face": "ArgonianMalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA41",
+   "ref": "0xB41",
+   "edid": "ALife_Pool_ArgonianM06",
+   "race": "0x13740",
+   "sex": "M",
+   "face": "ArgonianMalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA42",
+   "ref": "0xB42",
+   "edid": "ALife_Pool_KhajiitM01",
+   "race": "0x13745",
+   "sex": "M",
+   "face": "KhajiitMalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA43",
+   "ref": "0xB43",
+   "edid": "ALife_Pool_KhajiitM02",
+   "race": "0x13745",
+   "sex": "M",
+   "face": "KhajiitMalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA44",
+   "ref": "0xB44",
+   "edid": "ALife_Pool_KhajiitM03",
+   "race": "0x13745",
+   "sex": "M",
+   "face": "KhajiitMalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA45",
+   "ref": "0xB45",
+   "edid": "ALife_Pool_KhajiitM04",
+   "race": "0x13745",
+   "sex": "M",
+   "face": "KhajiitMalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA46",
+   "ref": "0xB46",
+   "edid": "ALife_Pool_KhajiitM05",
+   "race": "0x13745",
+   "sex": "M",
+   "face": "KhajiitMalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA47",
+   "ref": "0xB47",
+   "edid": "ALife_Pool_KhajiitM06",
+   "race": "0x13745",
+   "sex": "M",
+   "face": "KhajiitMalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA48",
+   "ref": "0xB48",
+   "edid": "ALife_Pool_KhajiitM07",
+   "race": "0x13745",
+   "sex": "M",
+   "face": "KhajiitMalePreset07",
+   "variant": 0
+  },
+  {
+   "local": "0xA49",
+   "ref": "0xB49",
+   "edid": "ALife_Pool_KhajiitM08",
+   "race": "0x13745",
+   "sex": "M",
+   "face": "KhajiitMalePreset08",
+   "variant": 0
+  },
+  {
+   "local": "0xA4A",
+   "ref": "0xB4A",
+   "edid": "ALife_Pool_KhajiitM09",
+   "race": "0x13745",
+   "sex": "M",
+   "face": "KhajiitMalePreset09",
+   "variant": 0
+  },
+  {
+   "local": "0xA4B",
+   "ref": "0xB4B",
+   "edid": "ALife_Pool_NordF01",
+   "race": "0x13746",
+   "sex": "F",
+   "face": "NordFemalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA4C",
+   "ref": "0xB4C",
+   "edid": "ALife_Pool_NordF02",
+   "race": "0x13746",
+   "sex": "F",
+   "face": "NordFemalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA4D",
+   "ref": "0xB4D",
+   "edid": "ALife_Pool_NordF03",
+   "race": "0x13746",
+   "sex": "F",
+   "face": "NordFemalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA4E",
+   "ref": "0xB4E",
+   "edid": "ALife_Pool_NordF04",
+   "race": "0x13746",
+   "sex": "F",
+   "face": "NordFemalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA4F",
+   "ref": "0xB4F",
+   "edid": "ALife_Pool_NordF05",
+   "race": "0x13746",
+   "sex": "F",
+   "face": "NordFemalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA50",
+   "ref": "0xB50",
+   "edid": "ALife_Pool_NordF06",
+   "race": "0x13746",
+   "sex": "F",
+   "face": "NordFemalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA51",
+   "ref": "0xB51",
+   "edid": "ALife_Pool_ImperialF01",
+   "race": "0x13744",
+   "sex": "F",
+   "face": "ImperialFemalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA52",
+   "ref": "0xB52",
+   "edid": "ALife_Pool_ImperialF02",
+   "race": "0x13744",
+   "sex": "F",
+   "face": "ImperialFemalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA53",
+   "ref": "0xB53",
+   "edid": "ALife_Pool_ImperialF03",
+   "race": "0x13744",
+   "sex": "F",
+   "face": "ImperialFemalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA54",
+   "ref": "0xB54",
+   "edid": "ALife_Pool_ImperialF04",
+   "race": "0x13744",
+   "sex": "F",
+   "face": "ImperialFemalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA55",
+   "ref": "0xB55",
+   "edid": "ALife_Pool_ImperialF05",
+   "race": "0x13744",
+   "sex": "F",
+   "face": "ImperialFemalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA56",
+   "ref": "0xB56",
+   "edid": "ALife_Pool_ImperialF06",
+   "race": "0x13744",
+   "sex": "F",
+   "face": "ImperialFemalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA57",
+   "ref": "0xB57",
+   "edid": "ALife_Pool_BretonF01",
+   "race": "0x13741",
+   "sex": "F",
+   "face": "BretonFemalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA58",
+   "ref": "0xB58",
+   "edid": "ALife_Pool_BretonF02",
+   "race": "0x13741",
+   "sex": "F",
+   "face": "BretonFemalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA59",
+   "ref": "0xB59",
+   "edid": "ALife_Pool_BretonF03",
+   "race": "0x13741",
+   "sex": "F",
+   "face": "BretonFemalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA5A",
+   "ref": "0xB5A",
+   "edid": "ALife_Pool_BretonF04",
+   "race": "0x13741",
+   "sex": "F",
+   "face": "BretonFemalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA5B",
+   "ref": "0xB5B",
+   "edid": "ALife_Pool_BretonF05",
+   "race": "0x13741",
+   "sex": "F",
+   "face": "BretonFemalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA5C",
+   "ref": "0xB5C",
+   "edid": "ALife_Pool_BretonF06",
+   "race": "0x13741",
+   "sex": "F",
+   "face": "BretonFemalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA5D",
+   "ref": "0xB5D",
+   "edid": "ALife_Pool_BretonF07",
+   "race": "0x13741",
+   "sex": "F",
+   "face": "BretonFemalePreset07",
+   "variant": 0
+  },
+  {
+   "local": "0xA5E",
+   "ref": "0xB5E",
+   "edid": "ALife_Pool_BretonF08",
+   "race": "0x13741",
+   "sex": "F",
+   "face": "BretonFemalePreset08",
+   "variant": 0
+  },
+  {
+   "local": "0xA5F",
+   "ref": "0xB5F",
+   "edid": "ALife_Pool_BretonF09",
+   "race": "0x13741",
+   "sex": "F",
+   "face": "BretonFemalePreset09",
+   "variant": 0
+  },
+  {
+   "local": "0xA60",
+   "ref": "0xB60",
+   "edid": "ALife_Pool_BretonF10",
+   "race": "0x13741",
+   "sex": "F",
+   "face": "BretonFemalePreset10",
+   "variant": 0
+  },
+  {
+   "local": "0xA61",
+   "ref": "0xB61",
+   "edid": "ALife_Pool_BretonF11",
+   "race": "0x13741",
+   "sex": "F",
+   "face": "BretonFemalePreset01",
+   "variant": 1
+  },
+  {
+   "local": "0xA62",
+   "ref": "0xB62",
+   "edid": "ALife_Pool_BretonF12",
+   "race": "0x13741",
+   "sex": "F",
+   "face": "BretonFemalePreset02",
+   "variant": 1
+  },
+  {
+   "local": "0xA63",
+   "ref": "0xB63",
+   "edid": "ALife_Pool_RedguardF01",
+   "race": "0x13748",
+   "sex": "F",
+   "face": "RedguardFemalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA64",
+   "ref": "0xB64",
+   "edid": "ALife_Pool_RedguardF02",
+   "race": "0x13748",
+   "sex": "F",
+   "face": "RedguardFemalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA65",
+   "ref": "0xB65",
+   "edid": "ALife_Pool_RedguardF03",
+   "race": "0x13748",
+   "sex": "F",
+   "face": "RedguardFemalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA66",
+   "ref": "0xB66",
+   "edid": "ALife_Pool_RedguardF04",
+   "race": "0x13748",
+   "sex": "F",
+   "face": "RedguardFemalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA67",
+   "ref": "0xB67",
+   "edid": "ALife_Pool_RedguardF05",
+   "race": "0x13748",
+   "sex": "F",
+   "face": "RedguardFemalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA68",
+   "ref": "0xB68",
+   "edid": "ALife_Pool_RedguardF06",
+   "race": "0x13748",
+   "sex": "F",
+   "face": "RedguardFemalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA69",
+   "ref": "0xB69",
+   "edid": "ALife_Pool_HighElfF01",
+   "race": "0x13743",
+   "sex": "F",
+   "face": "HighElfFemalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA6A",
+   "ref": "0xB6A",
+   "edid": "ALife_Pool_HighElfF02",
+   "race": "0x13743",
+   "sex": "F",
+   "face": "HighElfFemalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA6B",
+   "ref": "0xB6B",
+   "edid": "ALife_Pool_HighElfF03",
+   "race": "0x13743",
+   "sex": "F",
+   "face": "HighElfFemalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA6C",
+   "ref": "0xB6C",
+   "edid": "ALife_Pool_HighElfF04",
+   "race": "0x13743",
+   "sex": "F",
+   "face": "HighElfFemalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA6D",
+   "ref": "0xB6D",
+   "edid": "ALife_Pool_HighElfF05",
+   "race": "0x13743",
+   "sex": "F",
+   "face": "HighElfFemalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA6E",
+   "ref": "0xB6E",
+   "edid": "ALife_Pool_HighElfF06",
+   "race": "0x13743",
+   "sex": "F",
+   "face": "HighElfFemalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA6F",
+   "ref": "0xB6F",
+   "edid": "ALife_Pool_HighElfF07",
+   "race": "0x13743",
+   "sex": "F",
+   "face": "HighElfFemalePreset07",
+   "variant": 0
+  },
+  {
+   "local": "0xA70",
+   "ref": "0xB70",
+   "edid": "ALife_Pool_HighElfF08",
+   "race": "0x13743",
+   "sex": "F",
+   "face": "HighElfFemalePreset08",
+   "variant": 0
+  },
+  {
+   "local": "0xA71",
+   "ref": "0xB71",
+   "edid": "ALife_Pool_HighElfF09",
+   "race": "0x13743",
+   "sex": "F",
+   "face": "HighElfFemalePreset09",
+   "variant": 0
+  },
+  {
+   "local": "0xA72",
+   "ref": "0xB72",
+   "edid": "ALife_Pool_HighElfF10",
+   "race": "0x13743",
+   "sex": "F",
+   "face": "HighElfFemalePreset10",
+   "variant": 0
+  },
+  {
+   "local": "0xA73",
+   "ref": "0xB73",
+   "edid": "ALife_Pool_HighElfF11",
+   "race": "0x13743",
+   "sex": "F",
+   "face": "HighElfFemalePreset01",
+   "variant": 1
+  },
+  {
+   "local": "0xA74",
+   "ref": "0xB74",
+   "edid": "ALife_Pool_HighElfF12",
+   "race": "0x13743",
+   "sex": "F",
+   "face": "HighElfFemalePreset02",
+   "variant": 1
+  },
+  {
+   "local": "0xA75",
+   "ref": "0xB75",
+   "edid": "ALife_Pool_WoodElfF01",
+   "race": "0x13749",
+   "sex": "F",
+   "face": "WoodElfFemalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA76",
+   "ref": "0xB76",
+   "edid": "ALife_Pool_WoodElfF02",
+   "race": "0x13749",
+   "sex": "F",
+   "face": "WoodElfFemalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA77",
+   "ref": "0xB77",
+   "edid": "ALife_Pool_WoodElfF03",
+   "race": "0x13749",
+   "sex": "F",
+   "face": "WoodElfFemalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA78",
+   "ref": "0xB78",
+   "edid": "ALife_Pool_WoodElfF04",
+   "race": "0x13749",
+   "sex": "F",
+   "face": "WoodElfFemalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA79",
+   "ref": "0xB79",
+   "edid": "ALife_Pool_WoodElfF05",
+   "race": "0x13749",
+   "sex": "F",
+   "face": "WoodElfFemalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA7A",
+   "ref": "0xB7A",
+   "edid": "ALife_Pool_WoodElfF06",
+   "race": "0x13749",
+   "sex": "F",
+   "face": "WoodElfFemalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA7B",
+   "ref": "0xB7B",
+   "edid": "ALife_Pool_DarkElfF01",
+   "race": "0x13742",
+   "sex": "F",
+   "face": "DarkElfFemalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA7C",
+   "ref": "0xB7C",
+   "edid": "ALife_Pool_DarkElfF02",
+   "race": "0x13742",
+   "sex": "F",
+   "face": "DarkElfFemalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA7D",
+   "ref": "0xB7D",
+   "edid": "ALife_Pool_DarkElfF03",
+   "race": "0x13742",
+   "sex": "F",
+   "face": "DarkElfFemalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA7E",
+   "ref": "0xB7E",
+   "edid": "ALife_Pool_DarkElfF04",
+   "race": "0x13742",
+   "sex": "F",
+   "face": "DarkElfFemalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA7F",
+   "ref": "0xB7F",
+   "edid": "ALife_Pool_DarkElfF05",
+   "race": "0x13742",
+   "sex": "F",
+   "face": "DarkElfFemalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA80",
+   "ref": "0xB80",
+   "edid": "ALife_Pool_DarkElfF06",
+   "race": "0x13742",
+   "sex": "F",
+   "face": "DarkElfFemalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA81",
+   "ref": "0xB81",
+   "edid": "ALife_Pool_OrcF01",
+   "race": "0x13747",
+   "sex": "F",
+   "face": "OrcFemalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA82",
+   "ref": "0xB82",
+   "edid": "ALife_Pool_OrcF02",
+   "race": "0x13747",
+   "sex": "F",
+   "face": "OrcFemalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA83",
+   "ref": "0xB83",
+   "edid": "ALife_Pool_OrcF03",
+   "race": "0x13747",
+   "sex": "F",
+   "face": "OrcFemalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA84",
+   "ref": "0xB84",
+   "edid": "ALife_Pool_OrcF04",
+   "race": "0x13747",
+   "sex": "F",
+   "face": "OrcFemalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA85",
+   "ref": "0xB85",
+   "edid": "ALife_Pool_OrcF05",
+   "race": "0x13747",
+   "sex": "F",
+   "face": "OrcFemalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA86",
+   "ref": "0xB86",
+   "edid": "ALife_Pool_OrcF06",
+   "race": "0x13747",
+   "sex": "F",
+   "face": "OrcFemalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA87",
+   "ref": "0xB87",
+   "edid": "ALife_Pool_ArgonianF01",
+   "race": "0x13740",
+   "sex": "F",
+   "face": "ArgonianFemalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA88",
+   "ref": "0xB88",
+   "edid": "ALife_Pool_ArgonianF02",
+   "race": "0x13740",
+   "sex": "F",
+   "face": "ArgonianFemalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA89",
+   "ref": "0xB89",
+   "edid": "ALife_Pool_ArgonianF03",
+   "race": "0x13740",
+   "sex": "F",
+   "face": "ArgonianFemalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA8A",
+   "ref": "0xB8A",
+   "edid": "ALife_Pool_ArgonianF04",
+   "race": "0x13740",
+   "sex": "F",
+   "face": "ArgonianFemalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA8B",
+   "ref": "0xB8B",
+   "edid": "ALife_Pool_ArgonianF05",
+   "race": "0x13740",
+   "sex": "F",
+   "face": "ArgonianFemalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA8C",
+   "ref": "0xB8C",
+   "edid": "ALife_Pool_ArgonianF06",
+   "race": "0x13740",
+   "sex": "F",
+   "face": "ArgonianFemalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA8D",
+   "ref": "0xB8D",
+   "edid": "ALife_Pool_KhajiitF01",
+   "race": "0x13745",
+   "sex": "F",
+   "face": "KhajiitFemalePreset01",
+   "variant": 0
+  },
+  {
+   "local": "0xA8E",
+   "ref": "0xB8E",
+   "edid": "ALife_Pool_KhajiitF02",
+   "race": "0x13745",
+   "sex": "F",
+   "face": "KhajiitFemalePreset02",
+   "variant": 0
+  },
+  {
+   "local": "0xA8F",
+   "ref": "0xB8F",
+   "edid": "ALife_Pool_KhajiitF03",
+   "race": "0x13745",
+   "sex": "F",
+   "face": "KhajiitFemalePreset03",
+   "variant": 0
+  },
+  {
+   "local": "0xA90",
+   "ref": "0xB90",
+   "edid": "ALife_Pool_KhajiitF04",
+   "race": "0x13745",
+   "sex": "F",
+   "face": "KhajiitFemalePreset04",
+   "variant": 0
+  },
+  {
+   "local": "0xA91",
+   "ref": "0xB91",
+   "edid": "ALife_Pool_KhajiitF05",
+   "race": "0x13745",
+   "sex": "F",
+   "face": "KhajiitFemalePreset05",
+   "variant": 0
+  },
+  {
+   "local": "0xA92",
+   "ref": "0xB92",
+   "edid": "ALife_Pool_KhajiitF06",
+   "race": "0x13745",
+   "sex": "F",
+   "face": "KhajiitFemalePreset06",
+   "variant": 0
+  },
+  {
+   "local": "0xA93",
+   "ref": "0xB93",
+   "edid": "ALife_Pool_KhajiitF07",
+   "race": "0x13745",
+   "sex": "F",
+   "face": "KhajiitFemalePreset07",
+   "variant": 0
+  },
+  {
+   "local": "0xA94",
+   "ref": "0xB94",
+   "edid": "ALife_Pool_KhajiitF08",
+   "race": "0x13745",
+   "sex": "F",
+   "face": "KhajiitFemalePreset08",
+   "variant": 0
+  },
+  {
+   "local": "0xA95",
+   "ref": "0xB95",
+   "edid": "ALife_Pool_KhajiitF09",
+   "race": "0x13745",
+   "sex": "F",
+   "face": "KhajiitFemalePreset09",
+   "variant": 0
+  },
+  {
+   "local": "0xA96",
+   "ref": "0xB96",
+   "edid": "ALife_Pool_VNordM03",
+   "race": "0x88794",
+   "sex": "M",
+   "face": "NordMalePreset03",
+   "variant": 1
+  },
+  {
+   "local": "0xA97",
+   "ref": "0xB97",
+   "edid": "ALife_Pool_VNordM04",
+   "race": "0x88794",
+   "sex": "M",
+   "face": "NordMalePreset04",
+   "variant": 1
+  },
+  {
+   "local": "0xA98",
+   "ref": "0xB98",
+   "edid": "ALife_Pool_VNordF03",
+   "race": "0x88794",
+   "sex": "F",
+   "face": "NordFemalePreset03",
+   "variant": 1
+  },
+  {
+   "local": "0xA99",
+   "ref": "0xB99",
+   "edid": "ALife_Pool_VNordF04",
+   "race": "0x88794",
+   "sex": "F",
+   "face": "NordFemalePreset04",
+   "variant": 1
+  },
+  {
+   "local": "0xA9A",
+   "ref": "0xB9A",
+   "edid": "ALife_Pool_VImperialM03",
+   "race": "0x88844",
+   "sex": "M",
+   "face": "ImperialMalePreset03",
+   "variant": 1
+  },
+  {
+   "local": "0xA9B",
+   "ref": "0xB9B",
+   "edid": "ALife_Pool_VImperialM04",
+   "race": "0x88844",
+   "sex": "M",
+   "face": "ImperialMalePreset04",
+   "variant": 1
+  },
+  {
+   "local": "0xA9C",
+   "ref": "0xB9C",
+   "edid": "ALife_Pool_VImperialF03",
+   "race": "0x88844",
+   "sex": "F",
+   "face": "ImperialFemalePreset03",
+   "variant": 1
+  },
+  {
+   "local": "0xA9D",
+   "ref": "0xB9D",
+   "edid": "ALife_Pool_VImperialF04",
+   "race": "0x88844",
+   "sex": "F",
+   "face": "ImperialFemalePreset04",
+   "variant": 1
+  },
+  {
+   "local": "0xA9E",
+   "ref": "0xB9E",
+   "edid": "ALife_Pool_VBretonM03",
+   "race": "0x8883C",
+   "sex": "M",
+   "face": "BretonMalePreset03",
+   "variant": 1
+  },
+  {
+   "local": "0xA9F",
+   "ref": "0xB9F",
+   "edid": "ALife_Pool_VBretonM04",
+   "race": "0x8883C",
+   "sex": "M",
+   "face": "BretonMalePreset04",
+   "variant": 1
+  },
+  {
+   "local": "0xAA0",
+   "ref": "0xBA0",
+   "edid": "ALife_Pool_VBretonF03",
+   "race": "0x8883C",
+   "sex": "F",
+   "face": "BretonFemalePreset03",
+   "variant": 1
+  },
+  {
+   "local": "0xAA1",
+   "ref": "0xBA1",
+   "edid": "ALife_Pool_VBretonF04",
+   "race": "0x8883C",
+   "sex": "F",
+   "face": "BretonFemalePreset04",
+   "variant": 1
+  },
+  {
+   "local": "0xAA2",
+   "ref": "0xBA2",
+   "edid": "ALife_Pool_VDarkElfM03",
+   "race": "0x8883D",
+   "sex": "M",
+   "face": "DarkElfMalePreset03",
+   "variant": 1
+  },
+  {
+   "local": "0xAA3",
+   "ref": "0xBA3",
+   "edid": "ALife_Pool_VDarkElfM04",
+   "race": "0x8883D",
+   "sex": "M",
+   "face": "DarkElfMalePreset04",
+   "variant": 1
+  },
+  {
+   "local": "0xAA4",
+   "ref": "0xBA4",
+   "edid": "ALife_Pool_VDarkElfF03",
+   "race": "0x8883D",
+   "sex": "F",
+   "face": "DarkElfFemalePreset03",
+   "variant": 1
+  },
+  {
+   "local": "0xAA5",
+   "ref": "0xBA5",
+   "edid": "ALife_Pool_VDarkElfF04",
+   "race": "0x8883D",
+   "sex": "F",
+   "face": "DarkElfFemalePreset04",
+   "variant": 1
+  }
+ ]
+}

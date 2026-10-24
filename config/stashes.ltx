@@ -1,0 +1,110 @@
+; Stashes (docs/STASHES.md, M5f). Anomaly 1.5.3: treasure_manager.script (half the boxes filled unmarked, the kind / tier fill,
+; reveal of an empty box with a map spot), ui_pda_npc_tab.script (stash messages on the dead), xr_effects.reward_stash (50%).
+; Every FormID below is a Skyrim.esm record checked in the master (EDID and value, Oct 18 2026). Distances in Skyrim units.
+;
+; Difficulty (T21, docs/DIFFICULTY.md): {economy+} = value x Diff(Economy); untagged keys are design values, not balance.
+
+[stashes]
+enabled          = true
+kinds            = wilderness, fort, bandit_camp, forsworn_camp, military_camp, dungeon, crypt, dwarven_ruin, mine, animal_den, giant_camp, shipwreck, mill, dragon_priest_lair
+spots_per_place  = 1
+offset           = 400, 1200   ; a spot lies this far from its place
+max_spots        = 900         ; cap over every worldspace
+hidden_share     = 0.5         ; filled and unmarked at a new game (Anomaly: half the boxes)
+reveal_radius    = 60000       ; a note or a reward reveals a stash this close to where it happened (Anomaly spawn_local)
+reveal_min       = 1500        ; ... but not right where the player stands
+place_radius     = 5000        ; the container is placed when the player comes this close
+marker_slots     = 8           ; marked stashes on the map at once (ALifeStashes objectives); the oldest gives its marker up
+
+[notes]
+chance           = 0.15        ; a member of a human faction carries a stash note when it dies (Anomaly stash_chance x PDA factor)
+
+[reward]
+chance           = 0.5         ; a job done pays with a stash (xr_effects.reward_stash)
+replace_gold     = true        ; the stash replaces the gold (false: on top of it, as Anomaly)
+budget_per_gold  = 1.0         ; {economy+} the reward stash is worth at least the gold x this (the gold already carries Diff(Economy))
+
+[loot]
+budget           = 250, 500    ; {economy+} gold value of a stash at level 0 (Anomaly: weight 500-800)
+per_level        = 0.04        ; {economy+} + this share per player level
+tier_levels      = 1, 8, 16, 26, 36    ; player level a tier opens at
+tier_chance      = 1, 0.8, 0.75, 0.6, 0.5   ; Anomaly chance_multi
+tier_count       = 1, 1.25, 1.5, 2, 3      ; Anomaly impact: count x this
+gold_form        = F           ; Gold001: what is left of the budget goes in as coins
+kinds            = potions, arrows, gems, soulgems, metal, scrolls, lockpicks
+
+; [kind.<name>]: chance (percent per try), count lo, hi, t1..t5 = <formid hex>:<gold value> list
+[kind.potions]
+chance = 60
+count  = 1, 3
+t1 = 3EADD:17, 3EAE0:20, 3EAE5:20
+t2 = 3EADE:73, 3EAE1:73, 39BE8:44
+t3 = 3EADF:57, 3EAE2:115, 3EAE7:28
+t4 = 3EAE3:79, 3EAE4:158, 3EAE8:39
+t5 = 39BE4:123, 39BE6:247, 3EAE6:61
+
+[kind.arrows]
+chance = 40
+count  = 10, 24
+t1 = 1397D:1, 1397F:2
+t2 = 139BB:3, 139BC:4
+t3 = 139BD:5
+t4 = 139BE:6, 139BF:7
+t5 = 139C0:8
+
+[kind.gems]
+chance = 30
+count  = 1, 2
+t1 = 63B45:100, 63B46:120
+t2 = 63B42:200, 68521:150, 6851E:180
+t3 = 63B44:400
+t4 = 63B43:600, 68523:500
+t5 = 63B47:800, 68520:750, 6851F:1000
+
+[kind.soulgems]
+chance = 30
+count  = 1, 1
+t1 = 2E4E2:10, 2E4E3:40, 2E4E4:25
+t2 = 2E4E5:80, 2E4E6:50
+t3 = 2E4F3:150, 2E4F4:100
+t4 = 2E4FB:350, 2E4FC:200
+t5 = 2E4FF:500, 2E500:300, 2E504:750
+
+[kind.metal]
+chance = 35
+count  = 1, 4
+t1 = 71CF3:2, 5ACE4:7, 5ACE5:20
+t2 = 5AD93:40, 5AD99:45, 5ACDF:25
+t3 = 5ADA0:60, 5AD9F:75, DB8A2:30
+t4 = 5ADA1:100, 5AD9E:100
+t5 = 5AD9D:150, 5ACDC:60
+
+[kind.scrolls]
+chance = 20
+count  = 1, 1
+t1 = 965A1:25, 965A0:25
+t2 = 96598:50, 96599:50, 965A5:50
+t3 = A44AE:100
+t4 = A44AF:100, A44B0:100
+t5 = A44C1:100
+
+[kind.lockpicks]
+chance = 50
+count  = 2, 6
+t1 = A:2
+
+; container base by place kind (Skyrim.esm, empty, no respawn); "default" for any kind not listed
+[containers]
+default            = F8478     ; TreasChestSmallEMPTYNoRespawn
+crypt              = F8477     ; TreasRuinsUrnLargeEmptyNoRespawn
+dungeon            = F8477
+dwarven_ruin       = F8477
+dragon_priest_lair = F8477
+fort               = 9424C     ; StrongBox
+military_camp      = 9424C
+shipwreck          = 9424C
+bandit_camp        = 10E886    ; MiscSackLarge_NoRespawn (its leveled CNTO is emptied after placing)
+forsworn_camp      = 10E886
+animal_den         = 10E886
+giant_camp         = 10E886
+wilderness         = 10E886

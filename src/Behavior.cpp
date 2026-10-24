@@ -1,3 +1,4 @@
+#include "ALife/Companions.h"
 #include "ALife/Forms.h"
 #include "ALife/Jobs.h"
 #include "ALife/Log.h"
@@ -96,7 +97,7 @@ namespace {
 			}
 			++armed;
 			a->EvaluatePackage(true, false);
-			if (pcOk && a->Is3DLoaded() && !a->IsInCombat()) {
+			if (pcOk && pc->GetParentCell() && Pool::InWorld(a) && !a->IsInCombat()) {
 				a->StartCombat(pc);
 				++engaged;
 			}
@@ -171,6 +172,7 @@ namespace {
 		TalkSituation(g, mode, toll);
 		Talk::Publish(mode, toll);
 		Jobs::PublishFor(mode == Talk::kGreet ? &g : nullptr);
+		Companions::PublishFor(&g, mode);
 		Talk::Hold(6.f);
 		mt.forced = true;
 		mt.forceAt = mt.clock;
@@ -225,10 +227,10 @@ namespace {
 		auto* pc = RE::PlayerCharacter::GetSingleton();
 		if (!pc || !pc->IsInCombat()) return;
 		auto tgt = pc->GetActorRuntimeData().currentCombatTarget.get();
-		if (!tgt || tgt->IsDead()) return;
+		if (!tgt || tgt->IsDead() || !tgt->Is3DLoaded() || !tgt->GetParentCell()) return;
 		for (auto& m : g.members) {
 			auto* a = Pool::ActorOf(m);
-			if (a && !a->IsDead() && !a->IsInCombat() && a->Is3DLoaded()) a->StartCombat(tgt.get());
+			if (a && !a->IsDead() && !a->IsInCombat() && Pool::InWorld(a)) a->StartCombat(tgt.get());
 		}
 	}
 }
@@ -264,6 +266,7 @@ void TalkSituation(const Group& g, int& mode, int& toll)
 {
 	mode = Talk::kNone;
 	toll = 0;
+	if (Companions::Has(g.id)) { mode = Talk::kCompanion; return; }   // travelling with the player: orders, not tolls or greetings
 	if (g.trust == Trust::Hostile || g.trust == Trust::BackingOff) return;
 	if (auto it = gMeet.find(g.id); it != gMeet.end()) {
 		const auto& mt = it->second;
@@ -284,7 +287,10 @@ void OnTalk(Group& g, Talk::Choice c, bool begin)
 {
 	auto& mt = gMeet[g.id];
 	auto* pc = RE::PlayerCharacter::GetSingleton();
-	static const char* kNames[] = { "-", "pay", "poor", "refuse", "fight", "peace", "defy", "news", "trade", "work", "accept", "decline", "turnin", "deliver", "abandon" };
+	static const char* kNames[] = { "-", "pay", "poor", "refuse", "fight", "peace", "defy", "news", "trade", "work", "accept", "decline", "turnin", "deliver", "abandon",
+									"recruit", "hireask", "hire1", "hire2", "follow", "wait", "move", "hold", "attack", "loot", "noloot", "gear", "dismiss",
+									"heal", "wrob", "finish", "spare", "robgo", "nomercy" };
+	static_assert(sizeof(kNames) / sizeof(kNames[0]) == std::size_t(Talk::Choice::NoMercy) + 1);
 	Log::Line(std::string("[talk] ") + FactionId(g.faction) + " squad #" + std::to_string(g.id) + ": player chose '" + kNames[int(c)] + "'" + (begin ? "" : " (finished)"));
 	const auto& sc = Sim::Cfg().standing;
 	if (begin) {

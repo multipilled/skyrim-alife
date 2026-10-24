@@ -6,7 +6,7 @@
 // editor IDs for most form types without third-party tweaks).
 namespace ALife::Forms {
 inline constexpr std::string_view kPlugin = "ALife.esp"sv;
-inline constexpr std::string_view kFactionsPlugin = "ALifeFactions.esp"sv;   // 14 hidden factions + relations (generated from factions.ltx)
+inline constexpr std::string_view kFactionsPlugin = "ALifeFactions.esp"sv;   // one hidden faction per human A-Life faction + relations (generated from factions.ltx)
 inline constexpr RE::FormID kFactionBase = 0x800;                          // + enum Faction index
 
 // World space index of a worldspace: 0 Tamriel (and its child worldspaces), 1 Solstheim (and its children), -1 anything else.
@@ -22,11 +22,15 @@ inline constexpr RE::FormID PackTravel = 0x920;
 inline constexpr RE::FormID PackSandbox = 0x921;
 inline constexpr RE::FormID PackFollow = 0x922;
 inline constexpr RE::FormID PackFlee = 0x923;
+inline constexpr RE::FormID PackCampHold = 0x924;     // camp life (docs/CAMPLIFE.md): mode rank 5, sandbox radius 150 at a job marker
+inline constexpr RE::FormID PackCampSit = 0x925;      // mode rank 6, sandbox radius 450 at a campfire / bed
+inline constexpr RE::FormID JobMarker0 = 0x980;       // 0x980..0x98E camp life job markers
+inline constexpr int kJobMarkers = 15;
 inline constexpr RE::FormID FactionALife = 0x930;
 inline constexpr RE::FormID FactionBandit = 0x931;
 inline constexpr RE::FormID FactionHunter = 0x932;
 inline constexpr RE::FormID FactionAdventurer = 0x933;
-inline constexpr RE::FormID FactionMode = 0x934;          // rank selects package: 1 travel 2 sandbox 3 follow 4 flee
+inline constexpr RE::FormID FactionMode = 0x934;          // rank selects package: 1 travel 2 sandbox 3 follow 4 flee 5 camp hold 6 camp sit
 inline constexpr RE::FormID FactionSlot0 = 0x935;         // 0x935..0x937 per online slot (group allies)
 inline constexpr RE::FormID FactionPlayerEnemy = 0x938;   // enemy reaction to PlayerFaction
 inline constexpr RE::FormID MCMQuest = 0x940;
@@ -153,6 +157,7 @@ struct Resolved
 	std::array<RE::TESFaction*, kFactionCount> fFaction{};   // ALifeFactions.esp, indexed by enum Faction
 	RE::TESObjectCELL* holdingCell{ nullptr };
 	std::array<RE::TESObjectREFR*, 3> slotMarkers{};
+	std::array<RE::TESObjectREFR*, Local::kJobMarkers> jobMarkers{};   // camp life (null with an ALife.esp from before M5h)
 	RE::TESObjectREFR* holdingMarker{ nullptr };
 	RE::TESFaction* fALife{ nullptr };
 	RE::TESFaction* fBandit{ nullptr };

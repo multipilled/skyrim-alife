@@ -122,7 +122,7 @@ void Board::SendOnItsWay(Group& g)
 void Board::WoundSquad(Group& g, float chance, float lo, float hi)
 {
 	for (auto& m : g.members) {
-		if (!m.alive()) continue;
+		if (!Stands(m)) continue;   // the down lie out of the raid (docs/WOUNDED.md)
 		if (rng.chance(chance)) m.health -= rng.uniform(lo, hi);
 		if (m.alive() && m.health < m.healthMax * 0.4f) m_host.Consume(m);   // drink a potion when badly hurt
 	}
@@ -241,7 +241,7 @@ void Board::RunActivity(Group& g, GraphNode& n, double h, bool fresh)
 	default: {
 		const float inn = n.inn ? 2.f : 1.f;
 		for (auto& m : g.members) {
-			if (!m.alive()) continue;
+			if (!Stands(m)) continue;   // the down get up only through Wounds
 			m.fatigue = std::max(0.f, m.fatigue - 140.f * hh * inn);
 			m.cold = std::max(0.f, m.cold - 250.f * hh);
 			m.health = std::min(m.healthMax, m.health + m.healthMax * 0.02f * hh * inn);

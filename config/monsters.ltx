@@ -369,3 +369,87 @@ health_per_level = 10
 damage = 35
 damage_per_level = 0.8
 hit = 0.55
+
+; Dragons (docs/DRAGONS.md): the scripted EncDragon bases (DragonActorScript: soul absorb, flyby and landing), not the NoScript
+; entries of LCharDragonAny, so a dragon killed on screen gives a soul. One creature per tier and breath; offline stats grow with
+; the tier (a dragon outfights novice and advanced squads, which flee anyway; a veteran squad brings one down about half the time).
+[creature_dragon_1_fire]
+name = Dragon
+form = 01CA03                ; EncDragon01Fire (L10)
+health = 900
+health_per_level = 25
+damage = 45
+damage_per_level = 1.0
+hit = 0.8
+
+[creature_dragon_1_frost]
+name = Dragon
+form = 0F80FA                ; EncDragon01Frost (L10)
+health = 900
+health_per_level = 25
+damage = 45
+damage_per_level = 1.0
+hit = 0.8
+
+[creature_dragon_2_fire]
+name = Blood Dragon
+form = 0F80FD                ; EncDragon02Fire (L20)
+health = 1200
+health_per_level = 30
+damage = 55
+damage_per_level = 1.2
+hit = 0.8
+
+[creature_dragon_2_frost]
+name = Blood Dragon
+form = 0F77F8                ; EncDragon02Frost (L20)
+health = 1200
+health_per_level = 30
+damage = 55
+damage_per_level = 1.2
+hit = 0.8
+
+[creature_dragon_3_frost]
+name = Frost Dragon
+form = 0351C3                ; EncDragon03Frost (L30)
+health = 1500
+health_per_level = 35
+damage = 65
+damage_per_level = 1.4
+hit = 0.8
+
+[creature_dragon_4_fire]
+name = Elder Dragon
+form = 0F811B                ; EncDragon04Fire (L40)
+health = 1800
+health_per_level = 40
+damage = 75
+damage_per_level = 1.6
+hit = 0.8
+
+[creature_dragon_4_frost]
+name = Elder Dragon
+form = 0F811A                ; EncDragon04Frost (L40)
+health = 1800
+health_per_level = 40
+damage = 75
+damage_per_level = 1.6
+hit = 0.8
+
+[creature_dragon_5_fire]
+name = Ancient Dragon
+form = 0F811C                ; EncDragon05Fire (L50)
+health = 2100
+health_per_level = 45
+damage = 85
+damage_per_level = 1.8
+hit = 0.8
+
+[creature_dragon_5_frost]
+name = Ancient Dragon
+form = 0F811E                ; EncDragon05Frost (L50)
+health = 2100
+health_per_level = 45
+damage = 85
+damage_per_level = 1.8
+hit = 0.8

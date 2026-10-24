@@ -1,0 +1,53 @@
+; Patrol mods that share Skyrim with A-Life (docs/COMPAT.md). Optional file: without it no mod is recognised.
+;
+;   plugins          : plugin filenames, case-insensitive, * = anything (each size of a mod ships its own plugin)
+;   handover_kinds   : every smart of these kinds (props.ltx [kind_map] names) is garrisoned by the mod
+;   handover / keep  : location FormIDs (Skyrim.esm hex) added to / exempted from the hand-over
+;   online_groups    : A-Life groups on screen at once while the mod is loaded (1-3)
+;   online_actors    : A-Life actors on screen at once (5-15)
+;   population       : multiplies the MCM population density (0.3-1)
+;   patrol_scale     : multiplies the patrol / owner_patrol respawn entries (0-1)
+; Several mods: the lowest caps and the product of the multipliers. MCM "Patrol mods" (INI iCompatBudget) overrides the caps.
+
+[compat]
+mods                = immersive_patrols, skyrim_at_war
+force               =               ; ids switched on without their plugin (lab only)
+handover_owner      = hold          ; a handed-over smart belongs to the side holding the hold
+handover_population = 1             ; A-Life squads a handed-over smart takes at once (a visit, not a second garrison)
+
+; Immersive Patrols SE (Nexus SSE 718, Scrabbulor): placed patrols of most factions on scheduled routes, no garrisons.
+[compat_immersive_patrols]
+name          = Immersive Patrols SE
+plugins       = Immersive Patrols*.esp, Immersive Patrols*.esm, Immersive Patrols*.esl
+online_groups = 2
+online_actors = 12
+population    = 0.85
+patrol_scale  = 0.6
+
+; Skyrim at War Reborn (Nexus SSE 79932): 200-2000 Civil War soldiers, 200+ road patrols, CW forts and road towers garrisoned
+; by the Legion / Stormcloaks instead of bandits and necromancers. Its page lists no forts, so every fort is handed over.
+[compat_skyrim_at_war]
+name           = Skyrim at War Reborn
+plugins        = Skyrim at War*.esp, Skyrim at War*.esm, Skyrim at War*.esl, SkyrimAtWar*.esp, SkyrimAtWar*.esm, SkyrimAtWar*.esl
+handover_kinds = fort
+keep           = 1916E          ; Driftshade Refuge: the Silver Hand's, not a CW fort
+online_groups  = 2
+online_actors  = 9
+population     = 0.6
+patrol_scale   = 0.5
+
+; Nexus SSE 92995 (faction framework: commanders, location capture). Plugin filename not verified yet: fill `plugins` and add
+; it to [compat] mods. Its captures are runtime state, so nothing is handed over statically.
+[compat_faction_commanders]
+name          = Faction commanders (Nexus SSE 92995)
+plugins       =
+online_groups = 2
+online_actors = 9
+population    = 0.6
+patrol_scale  = 0.5
+
+; Vanilla factions the mods' soldiers belong to -> A-Life faction (engine reactions added while any mod is loaded).
+; The others those mods use (Thalmor, bandits, Vigilants, Dawnguard, vampires) are tied in ALifeFactions.esp already.
+[compat_factions]
+2BF9A = imperial        ; CWImperialFaction
+2BF9B = stormcloak      ; CWSonsFaction

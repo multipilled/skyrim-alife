@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -23,6 +24,8 @@
 
 namespace ALife {
 
+class Wounds;
+
 struct Host
 {
 	virtual ~Host() = default;
@@ -31,6 +34,11 @@ struct Host
 	virtual bool PlayerNear(float /*a_x*/, float /*a_y*/, float /*a_radius*/, int /*a_ws*/) const { return false; }
 	// Build one squad member (race, name, outfit, skills ...). a_leader marks the commander.
 	virtual Member MakeMember(Faction a_f, Tier a_tier, Role a_role, int a_level, bool a_leader, Rng& a_rng, std::uint64_t a_id) = 0;
+	// ... in worldspace a_ws (the squad's home at creation: races.ltx has per-worldspace mixes, T24). Hosts that do not care keep MakeMember.
+	virtual Member MakeMemberIn(int /*a_ws*/, Faction a_f, Tier a_tier, Role a_role, int a_level, bool a_leader, Rng& a_rng, std::uint64_t a_id)
+	{
+		return MakeMember(a_f, a_tier, a_role, a_level, a_leader, a_rng, a_id);
+	}
 	// Anomaly "rank": relative fighting value of one member (health-independent).
 	virtual float MemberPower(const Member& a_m) const = 0;
 	// Monster members: the board computes a creature's power from monsters.ltx with the same formula the plugin uses for people;
@@ -77,6 +85,8 @@ struct Stats
 	std::array<std::array<std::uint32_t, kFactionCount>, kFactionCount> killMatrix{};   // [killer][victim]
 	std::array<std::uint64_t, kFactionCount> partsHarvested{};   // creature parts taken by each faction (pelts, troll fat ...)
 	std::uint64_t relationChanges{ 0 }, relationFlips{ 0 }, sosNews{ 0 }, deathNews{ 0 }, battleNews{ 0 }, gossipNews{ 0 };
+	std::uint64_t holdFlips{ 0 }, guardsSwapped{ 0 }, stoodDown{ 0 };   // Civil War progress (docs/CIVILWAR.md)
+	std::uint64_t dragonsMade{ 0 }, dragonFlees{ 0 }, dragonFights{ 0 }, dragonFlights{ 0 };   // docs/DRAGONS.md
 };
 
 struct SmartState
@@ -113,13 +123,42 @@ public:
 	int maxSquads{ 400 };                          // safety valve for CPU / pool pressure (~200 people + ~120 monster squads at full lairs)
 	bool surgeActive{ false };                     // reserved: Anomaly emission analogue
 	std::unordered_set<std::uint64_t> pinned;      // squads held at their place by a job (assault: tasks_assault.script:484-510); set by Tasks, not saved
+	std::unordered_set<std::uint64_t> companions;  // squads travelling with the player (docs/COMPANIONS.md): out of the simulation; set by Party, not saved
+	std::unordered_map<std::uint64_t, std::uint32_t> forced;   // squad -> place it is sent to and held at once there (defend waves, a captive walking home); set by Tasks, not saved
+	std::unordered_set<std::uint64_t> held;        // squads out of the simulation where they stand (a rescue's captive): no moving, no offline fights, never on screen; set by Tasks, not saved
+	Wounds* wounds{ nullptr };                     // wounded / help / finish / surrender (docs/WOUNDED.md); null: nobody ever goes down
+
+	// --- dragons (docs/DRAGONS.md): an own board path for MonsterType::Flyer (straight flight between dragon places, hunting the
+	// squads at its place, a world-wide cap and a respawn timer). Numbers only through DragonEff().
+	float dragonScale{ 1.f };                      // a test override on top of T21's Diff(Dragons) (the harness sweeps it); applied only in DragonEff()
+	double dragonLast{ -1e9 };                     // game hour the last dragon was made or killed (respawn timer); co-saved (record DRGN)
+	std::uint32_t dragonKills{ 0 };                // dragons the player killed (the plugin counts them); co-saved (DRGN)
+	DragonNumbers DragonEff() const { return ScaledDragons(m_cfg.dragons, m_cfg.Diff(DiffChannel::Dragons) * dragonScale); }   // frequency and level x Diff(Dragons)
+	bool IsDragon(const Group& a_g) const { return m_cfg.monster[int(a_g.faction)] == MonsterType::Flyer; }
+	int DragonCount() const;                       // living dragons on the board
+	int DragonCap() const;                         // dragons allowed now (max_dragons x the multiplier, rounded)
 
 	Host& HostRef() { return m_host; }
+	const World& WorldRef() const { return m_world; }
 	// A member of faction a_victim was killed by a_killer (offline here, or online by the plugin): dynamic relations
 	// (Anomaly game_relations.calculate_relation_change; nothing happens unless cfg.dynamicRelations).
 	void OnKill(Faction a_killer, Faction a_victim, Tier a_victimTier);
 	bool MonsterHeld(std::uint32_t a_smart) const { return a_smart < smart.size() && smart[a_smart].monsters > 0; }
 	const Config& Cfg() const { return m_cfg; }
+
+	// --- Civil War progress and faction gates (docs/CIVILWAR.md, core/CivilWar.cpp). Not saved: the host derives them from the
+	// game at every load and on change; Reset puts the places back to the config's start owners and opens every gate.
+	std::uint8_t HoldOwner(FormID a_hold) const;         // live owner of a [hold_faction] hold (its start owner until told otherwise)
+	std::uint8_t EffectiveOwner(FormID a_hold) const;    // ... the winner everywhere once the war is over; kNoFaction: not a war hold
+	bool SetHoldOwner(FormID a_hold, Faction a_f);       // true when it changed: the hold's places, their bonus and owner respawns move
+	void SetWarOver(std::uint8_t a_loser);               // the losing side (kNoFaction: the war goes on)
+	std::uint8_t WarLoser() const { return m_cwLoser; }
+	void SetGated(Faction a_f, bool a_shut);             // a shut faction has no squads (Dawnguard before Fort Dawnguard's rebuild)
+	bool Gated(Faction a_f) const { return m_gated[int(a_f)]; }
+	bool Blocked(Faction a_f, int a_ws) const;           // squads of a_f may not exist in that worldspace (stood down or gated)
+	// Off-screen squads only: a hold's guards whose place changed side are replaced by the new side's, squads of a blocked
+	// faction retire. Runs at the start of every step; returns how many squads it touched.
+	int ApplyFactionState();
 
 	// --- queries
 	Group* Find(std::uint64_t a_id);
@@ -130,11 +169,16 @@ public:
 	// --- mechanics (public for tests and for the plugin's online driver)
 	float EvaluatePrior(const GraphNode& a_t, const SmartState& a_s, const Group& a_g) const;
 	bool TargetPrecondition(const GraphNode& a_t, const SmartState& a_s, const Group& a_g, bool a_ignorePopulation) const;
+	// The place in worldspace a_ws nearest (a_x, a_y) that a_g could target there (TargetPrecondition as if it were in a_ws,
+	// population ignored); -1 when there is none. Companions dismissed in another worldspace settle there (docs/COMPANIONS.md).
+	std::int64_t NearestValidPlace(const Group& a_g, int a_ws, float a_x, float a_y) const;
 	const GraphNode* GetSquadTarget(const Group& a_g);
 	Group* CreateSquad(std::uint32_t a_smart, const std::string& a_section, bool a_register = true);
 	void AssignToSmart(Group& a_g, std::int64_t a_smart);   // -1 releases
 	void RemoveSquad(Group& a_g, const char* a_why);
-	float SquadPower(const Group& a_g) const;               // sum of health-weighted member power (Anomaly ocs power)
+	float SquadPower(const Group& a_g) const;               // sum of health-weighted power of the members standing (Anomaly ocs power)
+	bool Stands(const Member& a_m) const;                   // alive and not down (docs/WOUNDED.md)
+	int StandingCount(const Group& a_g) const;
 	float PowerOf(const Member& a_m) const;                 // health-independent power: the host's for people, monsters.ltx for creatures
 	// --- monsters (docs/MUTANTS.md)
 	bool IsMonster(const Group& a_g) const { return m_cfg.IsMonster(a_g.faction); }
@@ -148,11 +192,16 @@ public:
 	int MaxCount(std::uint32_t a_smart, std::size_t a_entry) const;
 
 private:
+	friend class Wounds;   // after-battle finishing, wounded survivors' news and falling back use the board's internals
 	void RecomputePopulation();
 	void TryRespawn(std::uint32_t a_smart);
 	void UpdateSquad(Group& a_g, double a_hours);
 	bool Move(Group& a_g, const GraphNode& a_target, double a_hours);   // true when it arrived
 	void RunOcs();
+	void UpdateDragon(Group& a_g, double a_hours);   // dragons (docs/DRAGONS.md)
+	const GraphNode* DragonTarget(const Group& a_g);
+	void TickDragons();                              // a new dragon when below the cap and the timer has run
+	void DragonHunt();                               // dragons at a place: novice / advanced people flee, veterans fight
 	void Battle(Group& a, Group& b, double a_hours);
 	void ChangeRelation(Faction a, Faction b, int a_delta);
 	void Gossip();
@@ -162,6 +211,12 @@ private:
 	double m_lastSos{ -1e9 }, m_lastBattleNews{ -1e9 }, m_lastDeathNews{ -1e9 };   // world-wide gaps per news kind
 	void Round(Group& a_attacker, Group& a_victim, std::vector<Member>& a_deadVictims);
 	void UpdateControl();
+	void ResetFactionState();
+	void AimHold(FormID a_hold);
+	bool SwapGuard(std::size_t a_index);
+	std::unordered_map<FormID, std::uint8_t> m_holdOwner;
+	std::uint8_t m_cwLoser{ kNoFaction };
+	std::array<bool, kFactionCount> m_gated{};
 	void TickNeeds(double a_hours);
 	void PaceLevels();
 	double m_lastPace{ -1e9 };

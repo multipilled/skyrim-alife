@@ -1,0 +1,6 @@
+; G2 fixture: a duplicate section (the second [companions] is merged into the first)
+[companions]
+max_members = 6
+
+[companions]   ; EXPECT dup.section
+max_squads = 2

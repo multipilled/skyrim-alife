@@ -8,6 +8,8 @@ namespace fs = std::filesystem;
 namespace ALife::Settings {
 namespace {
 	Data g;
+	// ALife.ini [General] keys of the difficulty sliders, in DiffChannel order (PopulationScale is the pre-T21 density slider)
+	constexpr const char* kScaleKeys[kDiffChannels] = { "PopulationScale", "MonsterScale", "StrengthScale", "LethalityScale", "EconomyScale", "MercyScale", "TaskScale", "DragonScale" };
 	std::string Trim(std::string s)
 	{
 		while (!s.empty() && (s.back() == '\r' || s.back() == '\n' || s.back() == ' ' || s.back() == '\t')) s.pop_back();
@@ -23,16 +25,22 @@ namespace {
 	{
 		if (!debugOnly) {
 			if (key == "Enabled") { d.enabled = (val != "0"); return; }
-			if (key == "PopulationScale") {
-				try { d.populationScale = std::stof(val); } catch (...) {}
-				d.populationScale = std::clamp(std::round(d.populationScale * 10.f) / 10.f, 0.5f, 1.5f);
-				return;
-			}
+			for (int c = 0; c < kDiffChannels; ++c)
+				if (key == kScaleKeys[c]) {
+					float v = d.diff.slider[c];
+					try { v = std::stof(val); } catch (...) {}
+					d.diff.slider[c] = std::clamp(std::round(v * 10.f) / 10.f, 0.f, 3.f);   // the channel's own range is applied by ComputeDifficulty
+					return;
+				}
+			if (key == "FollowGameDifficulty") { d.diff.followGame = (val != "0"); return; }
 			if (key == "OfflineCombat") { d.ocsMode = std::clamp(ToInt(val, 1), 0, 2); return; }
 			if (key == "News") { d.news = (val != "0"); return; }
 			if (key == "DynamicRelations") { d.dynamicRelations = (val == "1"); return; }
+			if (key == "Dragons") { d.dragons = (val != "0"); return; }
 			if (key == "TalkInitiative") { d.talkInitiative = std::clamp(ToInt(val, 2), 0, 3); return; }
 			if (key == "Loot") { d.loot = (val != "0"); return; }
+			if (key == "iCompatBudget") { d.compatBudget = std::clamp(ToInt(val, -1), -1, 3); return; }
+			if (key == "bCompatHandover") { d.compatHandover = (val != "0"); return; }
 			if (key == "PrepareUninstall") { d.prepareUninstall = (val == "1"); return; }
 		}
 		if (key == "bDebug") d.bDebug = (val == "1");
@@ -42,6 +50,7 @@ namespace {
 		else if (key == "sDebugInWorld") d.sDebugInWorld = val;
 		else if (key == "sDebugAuto") d.sDebugAuto = val;
 		else if (key == "iDebugSeed") d.iDebugSeed = ToInt(val, 1);
+		else if (key == "iDebugDifficulty") d.iDebugDifficulty = std::clamp(ToInt(val, -1), -1, 5);
 		else if (key == "iDebugKeyStatus") d.iDebugKeyStatus = ToInt(val, 79);
 		else if (key == "iDebugKeyFight") d.iDebugKeyFight = ToInt(val, 80);
 		else if (key == "iDebugKeyFillSticky") d.iDebugKeyFillSticky = ToInt(val, 81);
@@ -96,6 +105,13 @@ void ReloadDebug()
 	ParseFile(g, true);
 }
 
+void ReloadDifficulty()
+{
+	Data d;
+	ParseFile(d, false);
+	g.diff = d.diff;
+}
+
 void Save()
 {
 	// Preserve hand-edited [Debug] from disk so MCM density/enabled writes cannot wipe bDebug=1.
@@ -106,14 +122,20 @@ void Save()
 	out << "[General]\n";
 	out << "Enabled=" << (g.enabled ? 1 : 0) << "\n";
 	char buf[16];
-	std::snprintf(buf, sizeof(buf), "%.1f", g.populationScale);
-	out << "PopulationScale=" << buf << "\n";
+	out << "FollowGameDifficulty=" << (g.diff.followGame ? 1 : 0) << "   ; Skyrim's difficulty picks a difficulty.ltx row, times the sliders below (docs/DIFFICULTY.md)\n";
+	for (int c = 0; c < kDiffChannels; ++c) {
+		std::snprintf(buf, sizeof(buf), "%.1f", g.diff.slider[c]);
+		out << kScaleKeys[c] << "=" << buf << "\n";
+	}
 	out << "OfflineCombat=" << g.ocsMode << "   ; 0 off, 1 only at smart terrains (default), 2 full\n";
 	out << "News=" << (g.news ? 1 : 0) << "\n";
 	out << "DynamicRelations=" << (g.dynamicRelations ? 1 : 0) << "\n";
+	out << "Dragons=" << (g.dragons ? 1 : 0) << "\n";
 	out << "TalkInitiative=" << g.talkInitiative << "   ; squads stopping you to talk: 0 never, 1 rarely, 2 normally (default), 3 often\n";
 	out << "Loot=" << (g.loot ? 1 : 0) << "   ; squads strip the bodies they pass\n";
-	out << "PrepareUninstall=" << (g.prepareUninstall ? 1 : 0) << "\n";
+	out << "iCompatBudget=" << g.compatBudget << "   ; patrol mods (Immersive Patrols, Skyrim at War): -1 auto, 0 off (full 3 groups / 15 actors), 1-3 online groups\n";
+	out << "bCompatHandover=" << (g.compatHandover ? 1 : 0) << "   ; forts a patrol mod garrisons get no A-Life respawn or outlaw squads\n";
+	out << "PrepareUninstall="<< (g.prepareUninstall ? 1 : 0) << "\n";
 	out << "\n; Test switch. Never shown in the MCM. Hotkeys are DirectX scan codes.\n";
 	out << "; Numpad1=79 status dump, Numpad2=80 fast-forward one game day, Numpad3=81 place a hostile pair near you.\n";
 	out << "; Set bDebug=1 then restart OR wait ~1s in-game (ReloadDebug). MCM Save no longer clobbers this.\n";
@@ -125,6 +147,7 @@ void Save()
 	out << "sDebugInWorld=" << g.sDebugInWorld << "\n";
 	out << "sDebugAuto=" << g.sDebugAuto << "\n";
 	out << "iDebugSeed=" << g.iDebugSeed << "\n";
+	if (g.iDebugDifficulty >= 0) out << "iDebugDifficulty=" << g.iDebugDifficulty << "\n";
 	out << "iDebugKeyStatus=" << g.iDebugKeyStatus << "\n";
 	out << "iDebugKeyFight=" << g.iDebugKeyFight << "\n";
 	out << "iDebugKeyFillSticky=" << g.iDebugKeyFillSticky << "\n";

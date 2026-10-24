@@ -362,6 +362,79 @@ level_offset = 2, 7
 roles = melee:2, archer:1.5, heavy:0.3, leader:1
 common = true
 
+; ---------------------------------------------------------------- Solstheim (Dragonborn): Skaal, Redoran Guard, Reavers
+
+[skaal_novice]
+faction = skaal
+tier = novice
+npc_in_squad = 2, 2
+level_offset = -4, 0
+roles = melee:2, archer:2, heavy:0.5, leader:1
+common = true
+
+[skaal_advanced]
+faction = skaal
+tier = advanced
+npc_in_squad = 2, 3
+level_offset = -1, 3
+roles = melee:2, archer:2, heavy:0.5, leader:1
+common = true
+
+[skaal_veteran]
+faction = skaal
+tier = veteran
+npc_in_squad = 2, 4
+level_offset = 2, 7
+roles = melee:2, archer:2, heavy:0.5, leader:1
+common = true
+
+[redoran_novice]
+faction = redoran
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -4, 0
+roles = melee:3, heavy:2, archer:1.5, spellsword:0.3, leader:1
+common = true
+
+[redoran_advanced]
+faction = redoran
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = -1, 3
+roles = melee:3, heavy:2, archer:1.5, spellsword:0.3, leader:1
+common = true
+
+[redoran_veteran]
+faction = redoran
+tier = veteran
+npc_in_squad = 3, 5
+level_offset = 2, 7
+roles = melee:3, heavy:2, archer:1.5, spellsword:0.3, leader:1
+common = true
+
+[reaver_novice]
+faction = reaver
+tier = novice
+npc_in_squad = 2, 3
+level_offset = -4, 0
+roles = melee:3, heavy:1, archer:2, mage:0.5, leader:1
+common = true
+
+[reaver_advanced]
+faction = reaver
+tier = advanced
+npc_in_squad = 3, 4
+level_offset = -1, 3
+roles = melee:3, heavy:1, archer:2, mage:0.5, leader:1
+common = true
+
+[reaver_veteran]
+faction = reaver
+tier = veteran
+npc_in_squad = 3, 5
+level_offset = 2, 7
+roles = melee:3, heavy:1, archer:2, mage:0.5, leader:1
+common = true
 ; ---------------------------------------------------------------- monsters (docs/MUTANTS.md)
 ; creatures = id:weight list from monsters.ltx; leader = the first member's creature. roles do not apply.
 [wildlife_novice]
@@ -677,3 +750,45 @@ level_offset = 2, 6
 creatures = dwarven_sphere:1
 leader = dwarven_centurion
 common = true
+
+; Dragons (docs/DRAGONS.md): one dragon each; dragons.ltx [tiers] picks the section by the player's level. Made only by the
+; board's dragon spawner (never by a place's respawn list); common = false keeps them out of the population factor.
+[dragon_1]
+faction = dragon
+tier = advanced
+npc_in_squad = 1, 1
+level_offset = 0, 2
+creatures = dragon_1_fire:1, dragon_1_frost:1
+common = false
+
+[dragon_2]
+faction = dragon
+tier = advanced
+npc_in_squad = 1, 1
+level_offset = 0, 2
+creatures = dragon_2_fire:1, dragon_2_frost:1
+common = false
+
+[dragon_3]
+faction = dragon
+tier = veteran
+npc_in_squad = 1, 1
+level_offset = 0, 3
+creatures = dragon_3_frost:1
+common = false
+
+[dragon_4]
+faction = dragon
+tier = veteran
+npc_in_squad = 1, 1
+level_offset = 0, 3
+creatures = dragon_4_fire:1, dragon_4_frost:1
+common = false
+
+[dragon_5]
+faction = dragon
+tier = veteran
+npc_in_squad = 1, 1
+level_offset = 0, 4
+creatures = dragon_5_fire:1, dragon_5_frost:1
+common = false

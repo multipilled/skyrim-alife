@@ -16,7 +16,7 @@ std::uint32_t FromName(const std::string& a_n)
 		{ "brotherhood", DarkBrotherhood }, { "college", College }, { "dawnguard", Dawnguard },   { "volkihar", Volkihar },
 		{ "blades", Blades },         { "greybeards", Greybeards }, { "vampire", Vampire },       { "werewolf", Werewolf },
 		{ "beast", BeastForm },       { "armed", Armed },           { "sneaking", Sneaking },     { "mounted", Mounted },
-		{ "incombat", InCombat },     { "night", Night },
+		{ "incombat", InCombat },     { "night", Night },           { "skaal", SkaalFriend },     { "ravenrock", RavenRock },
 	};
 	for (auto& e : kTable)
 		if (a_n == e.name) return e.bit;
@@ -281,7 +281,7 @@ float Standing::Advantage(float squadPower, const PlayerContext& ctx) const
 int Standing::TollFor(const PlayerContext& ctx) const
 {
 	const auto& sc = m_cfg->standing;
-	return std::max(10, int(sc.tollBase + sc.tollPerLevel * float(ctx.level)));
+	return std::max(10, int((sc.tollBase + sc.tollPerLevel * float(ctx.level)) / std::max(0.01f, m_cfg->Diff(DiffChannel::Economy))));   // economy: richer games, smaller tolls
 }
 
 Verdict Standing::Judge(const Group& g, const PlayerContext& ctx, const Env& env) const
@@ -454,6 +454,41 @@ void Standing::OnToll(Group& g, double now)
 	const auto& sc = m_cfg->standing;
 	g.tollUntil = now + double(sc.tollPassHours);
 	g.memory = std::min(1000.f, g.memory + sc.tollMemory);
+}
+
+// The wounded and the surrendered (docs/WOUNDED.md s3-4). Anomaly: transfer_medkit makes an enemy neutral and anyone else a friend,
+// wounded_helped +10 reputation; killed_prisoners -25 reputation (xr_motivator.script:341). The amounts come from wounded.ltx
+// [standing] through WoundConfig (one read path for the difficulty scaling), so goodwill and memory are passed in.
+void Standing::OnWoundHelped(Group& g, float goodwill, float memory, double now)
+{
+	Deed(g.faction, std::max(0.f, goodwill), true, now);
+	g.memory = std::clamp(g.memory + std::max(0.f, memory), -1000.f, 1000.f);
+	g.helpedByPlayer = true;
+}
+
+void Standing::OnRob(Group& g, bool hostile, float goodwill, float memory, double now)
+{
+	if (hostile) return;   // looting someone who attacked you costs nothing
+	Deed(g.faction, -std::max(0.f, goodwill), false, now);
+	g.memory = std::clamp(g.memory - std::max(0.f, memory), -1000.f, 1000.f);
+}
+
+void Standing::OnFinish(Group& g, float goodwill, double now)
+{
+	Deed(g.faction, -std::max(0.f, goodwill), true, now);
+}
+
+void Standing::OnSpare(Group& g, float goodwill, float memory, double now)
+{
+	Deed(g.faction, std::max(0.f, goodwill), false, now);
+	g.memory = std::clamp(g.memory + std::max(0.f, memory), -1000.f, 1000.f);
+	++g.letGoCount;
+}
+
+void Standing::OnPrisonerKilled(Group& g, float goodwill, float notoriety, double now)
+{
+	Deed(g.faction, -std::max(0.f, goodwill), true, now);
+	state.notoriety = std::clamp(state.notoriety + notoriety, 0.f, 1000.f);   // even when its faction is hostile
 }
 
 void Standing::Tick(double now, double dt)

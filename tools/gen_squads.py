@@ -16,6 +16,9 @@ fac = {
  "silverhand":  ("melee:3, heavy:1, archer:1, leader:1", 1.0, "Silver Hand"),
  "vigilant":    ("melee:3, heavy:2, mage:1, leader:1", 0.9, "Vigilants of Stendarr"),
  "caravan":     ("melee:2, archer:1.5, heavy:0.3, leader:1", 0.9, "Khajiit caravan"),
+ "skaal":       ("melee:2, archer:2, heavy:0.5, leader:1", 0.8, "Skaal hunters"),
+ "redoran":     ("melee:3, heavy:2, archer:1.5, spellsword:0.3, leader:1", 1.0, "Redoran Guard"),
+ "reaver":      ("melee:3, heavy:1, archer:2, mage:0.5, leader:1", 1.0, "Reavers"),
 }
 tiers = {
  "novice":   dict(n=(2, 3), lvl=(-4, 0)),

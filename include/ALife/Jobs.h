@@ -14,6 +14,7 @@ void Reset();                                  // new game / before a load: forg
 void PublishFor(const Group* a_g);
 // A job choice was made in the dialogue (applied once the menu has closed).
 void OnChoice(std::uint64_t a_squad, Talk::Choice a_choice);
+bool Holds(std::uint64_t a_squad);             // an open job's target / recipient / assault holder (it will not join the player)
 // Main thread, sim lock held: progress, markers, rewards.
 void Tick(float a_realDt);
 

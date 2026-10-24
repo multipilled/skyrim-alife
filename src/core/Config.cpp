@@ -49,6 +49,7 @@ MonsterType MonsterTypeFromName(const std::string& a_name)
 	if (n == "vegetarian") return MonsterType::Vegetarian;
 	if (n == "zombied") return MonsterType::Zombied;
 	if (n == "special") return MonsterType::Special;
+	if (n == "flyer") return MonsterType::Flyer;
 	return MonsterType::None;
 }
 
@@ -97,6 +98,92 @@ Kind ClassifyKeywords(const std::vector<FormID>& a_kw)
 	return Kind::Wilderness;
 }
 
+// ------------------------------------------------------------------ races (T24)
+namespace {
+	// The tables the plugin rolled from before T24 (src/Sim.cpp RollRace), in the same order: Tamriel draws stay identical.
+	void DefaultRaces(Config& c)
+	{
+		using R = RaceId;
+		auto set = [&](Faction f, std::initializer_list<RaceWeight> t) { c.races[0][int(f)] = t; };
+		const RaceTable adv = { { R::Nord, 25 }, { R::Imperial, 12 }, { R::Breton, 12 }, { R::Redguard, 10 }, { R::Altmer, 8 },
+		                        { R::Bosmer, 8 }, { R::Dunmer, 10 }, { R::Orsimer, 6 }, { R::Khajiit, 5 }, { R::Argonian, 4 } };
+		for (auto& ws : c.races) for (auto& t : ws) t.clear();
+		for (int f = 0; f < kFactionCount; ++f) c.races[0][f] = adv;   // the default (Wanderer, and anyone not listed)
+		set(Faction::Bandit, { { R::Nord, 40 }, { R::Imperial, 12 }, { R::Redguard, 10 }, { R::Breton, 8 }, { R::Dunmer, 8 },
+		                       { R::Orsimer, 8 }, { R::Bosmer, 5 }, { R::Khajiit, 4 }, { R::Argonian, 3 }, { R::Altmer, 2 } });
+		set(Faction::Forsworn, { { R::Breton, 90 }, { R::Nord, 10 } });
+		set(Faction::Imperial, { { R::Imperial, 45 }, { R::Nord, 20 }, { R::Redguard, 15 }, { R::Breton, 12 }, { R::Bosmer, 5 }, { R::Altmer, 3 } });
+		set(Faction::Stormcloak, { { R::Nord, 75 }, { R::Dunmer, 5 }, { R::Redguard, 5 }, { R::Breton, 5 }, { R::Orsimer, 5 }, { R::Khajiit, 3 }, { R::Argonian, 2 } });
+		set(Faction::Thalmor, { { R::Altmer, 88 }, { R::Bosmer, 12 } });
+		set(Faction::Hunter, { { R::Nord, 50 }, { R::Bosmer, 15 }, { R::Imperial, 10 }, { R::Redguard, 8 }, { R::Breton, 6 },
+		                       { R::Orsimer, 5 }, { R::Khajiit, 3 }, { R::Argonian, 3 } });
+		set(Faction::Mercenary, { { R::Nord, 25 }, { R::Redguard, 20 }, { R::Imperial, 15 }, { R::Orsimer, 15 }, { R::Breton, 10 },
+		                          { R::Dunmer, 5 }, { R::Khajiit, 5 }, { R::Argonian, 5 } });
+		set(Faction::Mage, { { R::Breton, 30 }, { R::Altmer, 25 }, { R::Dunmer, 20 }, { R::Imperial, 15 }, { R::Nord, 5 }, { R::Redguard, 5 } });
+		set(Faction::Necromancer, { { R::Dunmer, 30 }, { R::Breton, 25 }, { R::Imperial, 15 }, { R::Altmer, 15 }, { R::Nord, 10 }, { R::Redguard, 5 } });
+		set(Faction::Vampire, { { R::NordVampire, 2 }, { R::ImperialVampire, 1 }, { R::BretonVampire, 1 }, { R::DunmerVampire, 2 } });
+		set(Faction::Dawnguard, { { R::Nord, 35 }, { R::Imperial, 25 }, { R::Redguard, 15 }, { R::Breton, 15 }, { R::Orsimer, 10 } });
+		set(Faction::SilverHand, { { R::Nord, 55 }, { R::Imperial, 15 }, { R::Breton, 10 }, { R::Redguard, 10 }, { R::Orsimer, 10 } });
+		set(Faction::Vigilant, { { R::Nord, 35 }, { R::Imperial, 30 }, { R::Breton, 20 }, { R::Redguard, 10 }, { R::Altmer, 5 } });
+		set(Faction::Caravan, { { R::Khajiit, 1 } });
+		set(Faction::Skaal, { { R::Nord, 1 } });
+		set(Faction::Redoran, { { R::Dunmer, 1 } });
+		set(Faction::Reaver, { { R::Dunmer, 40 }, { R::Nord, 30 }, { R::Imperial, 8 }, { R::Redguard, 8 }, { R::Orsimer, 6 },
+		                       { R::Breton, 4 }, { R::Argonian, 2 }, { R::Khajiit, 2 } });
+	}
+
+	// "nord:40, imperial:12" -> a table; false (and the old table kept) on any bad entry
+	bool ParseRaces(const std::string& v, RaceTable& out, std::string& err)
+	{
+		RaceTable t;
+		for (auto& e : SplitList(v)) {
+			const auto colon = e.find(':');
+			bool ok = false;
+			const RaceId r = RaceFromId(Trim(e.substr(0, colon)), &ok);
+			int w = 0;
+			try { w = colon == std::string::npos ? 0 : std::stoi(e.substr(colon + 1)); } catch (...) { ok = false; }
+			if (!ok || w <= 0) { err = "races.ltx: bad entry '" + e + "'"; return false; }
+			t.push_back({ r, w });
+		}
+		if (t.empty()) { err = "races.ltx: empty table"; return false; }
+		out = std::move(t);
+		return true;
+	}
+
+	void LoadRaces(const Ltx& l, Config& c, std::string& warn)
+	{
+		for (int ws = 0; ws < kWorldspaces; ++ws) {
+			const std::string sec = ws == 0 ? "races" : std::string("races.") + kWorldspaceIds[ws];
+			if (auto* lines = l.Section(sec))
+				for (auto& kv : *lines) {
+					bool ok = false;
+					const Faction f = FactionFromId(kv.first, &ok);
+					std::string err;
+					if (!ok || !IsHumanFaction(f)) { warn += "races.ltx [" + sec + "]: unknown faction '" + kv.first + "'; "; continue; }
+					if (!ParseRaces(kv.second, c.races[std::size_t(ws)][int(f)], err)) warn += err + " in [" + sec + "] " + kv.first + "; ";
+				}
+		}
+	}
+}
+
+const RaceTable& Config::RacesFor(Faction f, int ws) const
+{
+	const int w = ws >= 0 && ws < kWorldspaces ? ws : 0;
+	const auto& t = races[std::size_t(w)][int(f)];
+	return t.empty() ? races[0][int(f)] : t;
+}
+
+RaceId Config::RollRace(Faction f, int ws, Rng& r) const
+{
+	const RaceTable& t = RacesFor(f, ws);
+	if (t.empty()) return RaceId::Nord;
+	int tot = 0;
+	for (auto& e : t) tot += e.w;
+	int x = r.index(tot);
+	for (auto& e : t) { if (x < e.w) return e.race; x -= e.w; }
+	return t[0].race;
+}
+
 bool LoadConfig(const std::string& a_dir, Config& c, std::string& a_err)
 {
 	c = Config{};
@@ -111,8 +198,16 @@ bool LoadConfig(const std::string& a_dir, Config& c, std::string& a_err)
 	bool okSq = sq.LoadFile(dir + "squads.ltx", &err);
 	stand.LoadFile(dir + "standing.ltx", nullptr);   // optional: compiled-in defaults stand in when missing
 	mon.LoadFile(dir + "monsters.ltx", nullptr);       // optional: without it no monster squad can be made
+	Ltx compat;
+	const bool okCompat = compat.LoadFile(dir + "compat.ltx", nullptr);   // optional: without it no patrol mod is recognised
+	{
+		Ltx diff;   // optional: without it the compiled-in rows of docs/DIFFICULTY.md
+		if (diff.LoadFile(dir + "difficulty.ltx", nullptr)) LoadDifficultyConfig(diff, c.diffCfg);
+		c.ApplyDifficulty(kAdept, DifficultyChoice{});
+	}
 	a_err = err;
 	if (!okAlife || !okFac || !okProps || !okSq) return false;
+	if (okCompat) LoadCompat(compat, c.compatCfg, &a_err);
 
 	// ---- alife.ltx
 	c.stepHours = alife.GetF("sim", "step_hours", c.stepHours);
@@ -159,6 +254,7 @@ bool LoadConfig(const std::string& a_dir, Config& c, std::string& a_err)
 	c.defaultRespawnIdle = alife.GetF("respawn", "default_idle", c.defaultRespawnIdle);
 	c.defaultRespawnRadius = alife.GetF("respawn", "default_radius", c.defaultRespawnRadius);
 	c.populationFactor = alife.GetF("respawn", "population_factor", c.populationFactor);
+	c.populationLtx = c.populationFactor;
 	c.startFill = alife.GetF("respawn", "start_fill", c.startFill);
 	c.monsterPopulationFactor = alife.GetF("respawn", "monster_population_factor", c.monsterPopulationFactor);
 	{
@@ -268,6 +364,51 @@ bool LoadConfig(const std::string& a_dir, Config& c, std::string& a_err)
 			else if (Lower(kv.first) == "solstheim") c.wsFaction[1] = std::uint8_t(f);
 		}
 	}
+	c.civilWar = fac.GetB("civil_war", "enabled", c.civilWar);
+	if (auto sides = fac.List("civil_war", "sides"); sides.size() == 2) {
+		bool okA = false, okB = false;
+		const Faction a = FactionFromId(Trim(sides[0]), &okA), b = FactionFromId(Trim(sides[1]), &okB);
+		if (okA && okB) c.cwSides = { std::uint8_t(a), std::uint8_t(b) };
+	}
+	if (fac.Has("civil_war", "guard_entries")) c.guardEntries = fac.List("civil_war", "guard_entries");
+	if (fac.Has("civil_war", "stand_down")) {
+		c.standDownWs.fill(false);
+		for (auto& w : fac.List("civil_war", "stand_down")) {
+			if (Lower(Trim(w)) == "tamriel") c.standDownWs[0] = true;
+			else if (Lower(Trim(w)) == "solstheim") c.standDownWs[1] = true;
+		}
+	}
+	if (auto* lines = fac.Section("faction_gates")) {   // dawnguard = Dawnguard.esm|0098CB:5
+		for (auto& kv : *lines) {
+			bool ok = false;
+			const Faction f = FactionFromId(Trim(kv.first), &ok);
+			if (!ok) continue;
+			for (auto& item : SplitList(kv.second)) {
+				const auto bar = item.find('|'), colon = item.rfind(':'), eq = item.rfind('=');
+				if (bar != std::string::npos && eq != std::string::npos && eq > bar) {   // dragon = Skyrim.esm|042851=1: a global at least 1
+					Config::FactionGate g;
+					g.faction = f;
+					g.plugin = Trim(item.substr(0, bar));
+					g.global = true;
+					try {
+						g.quest = FormID(std::stoul(item.substr(bar + 1, eq - bar - 1), nullptr, 16));
+						g.value = std::stof(item.substr(eq + 1));
+					} catch (...) { continue; }
+					c.gates.push_back(g);
+					continue;
+				}
+				if (bar == std::string::npos || colon == std::string::npos || colon < bar) continue;
+				Config::FactionGate g;
+				g.faction = f;
+				g.plugin = Trim(item.substr(0, bar));
+				try {
+					g.quest = FormID(std::stoul(item.substr(bar + 1, colon - bar - 1), nullptr, 16));
+					g.stage = std::uint16_t(std::stoul(item.substr(colon + 1)));
+				} catch (...) { continue; }
+				c.gates.push_back(g);
+			}
+		}
+	}
 	if (auto* lines = fac.Section("hold_faction")) {
 		for (auto& kv : *lines) {
 			bool ok = false;
@@ -319,6 +460,13 @@ bool LoadConfig(const std::string& a_dir, Config& c, std::string& a_err)
 	};
 
 	LoadStandingConfig(stand, c.standing);
+	DefaultRaces(c);
+	{
+		Ltx races;
+		std::string warn;
+		if (races.LoadFile(dir + "races.ltx", nullptr)) LoadRaces(races, c, warn);   // optional: the compiled-in tables stand in when missing
+		if (!warn.empty()) a_err += warn;
+	}
 	// the old [player] row of factions.ltx is only a fallback baseline when standing.ltx has none
 	if (!stand.Has("base"))
 		for (int i = 0; i < kFactionCount; ++i) c.standing.base[i] = float(c.playerRel[i]);
@@ -338,11 +486,11 @@ bool LoadConfig(const std::string& a_dir, Config& c, std::string& a_err)
 			}
 		};
 		using F = Faction;
-		fill(c.doesTrade, "trade", { F::Imperial, F::Stormcloak, F::Thalmor, F::Wanderer, F::Hunter, F::Mercenary, F::Mage, F::Dawnguard, F::Vigilant, F::Caravan });
-		fill(c.doesRaidSettlements, "raid_settlement", { F::Bandit, F::Forsworn, F::SilverHand });
+		fill(c.doesTrade, "trade", { F::Imperial, F::Stormcloak, F::Thalmor, F::Wanderer, F::Hunter, F::Mercenary, F::Mage, F::Dawnguard, F::Vigilant, F::Caravan, F::Skaal, F::Redoran });
+		fill(c.doesRaidSettlements, "raid_settlement", { F::Bandit, F::Forsworn, F::SilverHand, F::Reaver });
 		fill(c.doesClearDungeons, "clear_dungeon", { F::Wanderer, F::Mercenary, F::Mage, F::Dawnguard, F::Vigilant, F::Necromancer, F::Hunter });
-		fill(c.doesHunt, "hunt", { F::Hunter, F::Wanderer, F::Mercenary, F::Bandit, F::Dawnguard, F::SilverHand, F::Forsworn });
-		fill(c.doesFish, "fish", { F::Hunter, F::Wanderer, F::Mercenary });
+		fill(c.doesHunt, "hunt", { F::Hunter, F::Wanderer, F::Mercenary, F::Bandit, F::Dawnguard, F::SilverHand, F::Forsworn, F::Skaal, F::Reaver });
+		fill(c.doesFish, "fish", { F::Hunter, F::Wanderer, F::Mercenary, F::Skaal });
 		fill(c.harvestsParts, "harvest_parts", { F::Hunter, F::Wanderer });
 		fill(c.huntsLairs, "hunt_lairs", { F::Hunter });
 		c.wHuntLair = alife.GetF("activities", "hunt_lair_weight", c.wHuntLair);
@@ -390,7 +538,67 @@ bool LoadConfig(const std::string& a_dir, Config& c, std::string& a_err)
 		c.squadIndex[d.section] = int(c.squads.size());
 		c.squads.push_back(std::move(d));
 	}
+
+	// ---- dragons.ltx + dragon_places.ltx (docs/DRAGONS.md): optional; without them no dragon is ever made
+	{
+		Ltx dl, dp;
+		auto& d = c.dragons;
+		if (dl.LoadFile(dir + "dragons.ltx", nullptr)) {
+			d.maxDragons = std::max(0.f, dl.GetF("dragons", "max_dragons", d.maxDragons));
+			d.respawnDays = std::max(0.01f, dl.GetF("dragons", "respawn_days", float(d.respawnDays)));
+			d.levelMult = std::max(0.f, dl.GetF("dragons", "level_mult", d.levelMult));
+			d.flySpeed = std::max(1000.f, dl.GetF("dragons", "fly_speed", d.flySpeed));
+			d.stayMin = dl.GetF("dragons", "stay_min", float(d.stayMin));
+			d.stayMax = std::max(float(d.stayMin), dl.GetF("dragons", "stay_max", float(d.stayMax)));
+			d.preyBonus = dl.GetF("dragons", "prey_bonus", d.preyBonus);
+			d.lairWeight = dl.GetF("dragons", "lair_weight", d.lairWeight);
+			d.wallWeight = dl.GetF("dragons", "wall_weight", d.wallWeight);
+			d.highWeight = dl.GetF("dragons", "high_weight", d.highWeight);
+			d.highZ = dl.GetF("dragons", "high_z", d.highZ);
+			d.fleeHours = dl.GetF("dragons", "flee_hours", float(d.fleeHours));
+			d.onlineDistance = dl.GetF("dragons", "online_distance", d.onlineDistance);
+			d.offlineDistance = std::max(d.onlineDistance, dl.GetF("dragons", "offline_distance", d.offlineDistance));
+			d.spawnHeight = dl.GetF("dragons", "spawn_height", d.spawnHeight);
+			d.onlineMaxHours = dl.GetF("dragons", "online_max_hours", float(d.onlineMaxHours));
+			if (auto* lines = dl.Section("tiers"))   // dragon_1 = 1  (squad section = from player level)
+				for (auto& [sec, lvl] : *lines)
+					if (c.Squad(Trim(sec))) d.tiers.emplace_back(Trim(sec), std::atoi(lvl.c_str()));
+			std::sort(d.tiers.begin(), d.tiers.end(), [](auto& a, auto& b) { return a.second < b.second; });
+			if (auto* lines = dl.Section("places"))
+				for (auto& [k, v] : *lines) {
+					float w = 0.f;
+					ParseFloat(Trim(v), w);
+					try { d.places[FormID(std::stoul(Trim(k), nullptr, 16))] = w; } catch (...) {}
+				}
+		}
+		if (dp.LoadFile(dir + "dragon_places.ltx", nullptr))
+			if (auto* lines = dp.Section("word_walls"))
+				for (auto& [k, v] : *lines)
+					try { d.walls[FormID(std::stoul(Trim(k), nullptr, 16))] = std::max(1, std::atoi(v.c_str())); } catch (...) {}
+	}
 	return !c.squads.empty();
+}
+
+DragonNumbers ScaledDragons(const DragonNumbers& base, float s)
+{
+	DragonNumbers n = base;
+	s = std::clamp(s, 0.f, 10.f);
+	n.maxDragons = base.maxDragons * s;                                      // 0: no dragons
+	n.respawnDays = s > 0.f ? base.respawnDays / double(s) : base.respawnDays * 1000.0;
+	n.levelMult = base.levelMult * s;
+	return n;
+}
+
+float DragonWeight(const Config& c, const GraphNode& n)
+{
+	const auto& d = c.dragons;
+	if (n.ws != 0 || n.city || n.settlement || n.inn || n.playerHome || n.disabled) return 0.f;   // Tamriel only; never where people live
+	float w = 0.f;
+	if (n.kind == Kind::DragonLair) w = d.lairWeight;
+	if (d.walls.count(n.location)) w = std::max(w, d.wallWeight);
+	if (n.kind == Kind::Wilderness && n.z >= d.highZ) w = std::max(w, d.highWeight);
+	if (auto it = d.places.find(n.location); it != d.places.end()) w = it->second;
+	return std::max(0.f, w);
 }
 
 void ApplyProps(const Config& cfg, GraphNode& n)
@@ -400,6 +608,10 @@ void ApplyProps(const Config& cfg, GraphNode& n)
 	char loc[32];
 	std::snprintf(loc, sizeof(loc), "loc_%X", n.location);
 	if (p.Has(loc)) preset = loc;                 // per-location override section [loc_1917D]:p_fort ...
+	if (n.ws == 1) {                              // Solstheim: Dragonborn.esm's own locations by plugin-local id, [loc_dlc2_143BB]
+		std::snprintf(loc, sizeof(loc), "loc_dlc2_%X", n.location & 0xFFFFFF);
+		if (p.Has(loc)) preset = loc;
+	}
 	if (!p.Has(preset)) preset = "default";
 	n.preset = preset;
 
@@ -424,6 +636,8 @@ void ApplyProps(const Config& cfg, GraphNode& n)
 	// default faction: a fixed id, "hold" (the hold's aligned faction) or none
 	n.defaultFaction = kNoFaction;
 	const std::string df = Lower(p.Get(preset, "default_faction", "none"));
+	n.holdAligned = df == "hold" && cfg.holdFaction.count(n.hold) != 0;
+	n.ownerBonus = p.GetF(preset, "owner");
 	if (df == "hold") {
 		auto it = cfg.holdFaction.find(n.hold);
 		if (it != cfg.holdFaction.end()) n.defaultFaction = std::uint8_t(it->second);
@@ -434,7 +648,7 @@ void ApplyProps(const Config& cfg, GraphNode& n)
 		if (ok) n.defaultFaction = std::uint8_t(f);
 	}
 	// "owner" coefficient: weight for the default (hold-aligned) faction, so cities/towns welcome their own side
-	if (n.defaultFaction != kNoFaction) n.props.byFaction[n.defaultFaction] += p.GetF(preset, "owner");
+	if (n.defaultFaction != kNoFaction) n.props.byFaction[n.defaultFaction] += n.ownerBonus;
 
 	// keyword overlays ([keyword_props] <keyword hex> = section): a Nordic ruin is a draugr lair whatever its kind preset says.
 	// Numbers add up (max_population too), respawn entries are appended.
@@ -471,11 +685,13 @@ void ApplyProps(const Config& cfg, GraphNode& n)
 		rp.name = name;
 		rp.squads = p.List(sec, "squads");
 		rp.num = p.GetF(sec, "num", 1.f);
+		if (name == "patrol" || name == "owner_patrol") rp.num *= cfg.compat.patrolScale;   // patrol mods already fill the roads
 		const std::string f = Lower(p.Get(sec, "faction", "none"));
 		if (f == "controller") rp.faction = kController;
 		else if (f == "owner") {
 			if (n.defaultFaction == kNoFaction) continue;   // nobody owns this place: nothing to respawn
 			rp.faction = n.defaultFaction;
+			rp.owner = true;
 		} else {
 			bool ok = false;
 			Faction ff = FactionFromId(f, &ok);
@@ -483,6 +699,7 @@ void ApplyProps(const Config& cfg, GraphNode& n)
 		}
 		if (!rp.squads.empty()) n.respawn.push_back(std::move(rp));
 	}
+	ApplyHandover(cfg, n);   // last: a patrol mod's garrison overrides the preset (docs/COMPAT.md)
 }
 
 }  // namespace ALife

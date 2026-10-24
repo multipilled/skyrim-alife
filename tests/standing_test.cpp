@@ -1,9 +1,11 @@
 // Headless lore tests for the standing system (docs/STANDING.md). Build: tests\build_standing_test.bat
+#include <cstring>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
 
+#include "ALife/SaveFormat.h"
 #include "ALife/Standing.h"
 
 using namespace ALife;
@@ -42,6 +44,13 @@ static Env Meeting(float dist, float squadPower)
 	e.now = 24.0 * 10 + 14;   // an afternoon
 	return e;
 }
+
+// byte writer / reader for the hand-built co-save records below (the same v<T>() / ok shape as Save.cpp's R)
+struct Wr { std::vector<std::uint8_t> b; template <class T> void v(T x) { auto* p = reinterpret_cast<const std::uint8_t*>(&x); b.insert(b.end(), p, p + sizeof(T)); } };
+struct Rd {
+	const std::vector<std::uint8_t>& b; std::size_t o{ 0 }; bool ok{ true };
+	template <class T> T v() { T x{}; if (o + sizeof(T) > b.size()) { ok = false; return x; } std::memcpy(&x, b.data() + o, sizeof(T)); o += sizeof(T); return x; }
+};
 
 int main(int argc, char** argv)
 {
@@ -274,6 +283,85 @@ int main(int argc, char** argv)
 	// ---- 12. thresholds
 	CHECK(st.RegardOf(-1000) == Regard::Hostile && st.RegardOf(-300) == Regard::Unfriendly && st.RegardOf(0) == Regard::Neutral &&
 		  st.RegardOf(300) == Regard::Friendly && st.RegardOf(1000) == Regard::Allied, "tier thresholds");
+
+	// ---- co-save SIM2 faction migration (include/ALife/SaveFormat.h, docs/SOLSTHEIM.md): hand-built 207, 206, 205 and 208 records
+	{
+		using namespace ALife::SaveFormat;
+		// the start of a SIM2 record as Save.cpp reads it (goodwill table, notoriety, rumours), then the faction bytes of a squad,
+		// one of its members and a place owner, which Save.cpp maps with FactionOf
+		auto build = [](std::uint32_t ver, int nf) {
+			Wr w;
+			if (ver >= kVerPreSolstheim) w.v(std::uint8_t(nf));
+			for (int f = 0; f < nf; ++f) w.v(float(100 + f));          // goodwill = 100 + the index the save wrote it at
+			w.v(42.f);                                                  // notoriety
+			w.v(std::uint32_t(3));                                      // rumours
+			w.v(std::uint8_t(15)); w.v(-5.f); w.v(10.0);
+			w.v(std::uint8_t(nf - 1)); w.v(7.f); w.v(20.0);
+			w.v(std::uint8_t(Faction::Stormcloak)); w.v(3.f); w.v(30.0);
+			w.v(std::uint8_t(15)); w.v(std::uint8_t(nf - 1)); w.v(kNoFaction);   // squad, member, place owner
+			return w.b;
+		};
+		struct Got { StandingState st; Faction squad{}, member{}; std::uint8_t owner{}; bool ok{}, used{}; };
+		auto load = [](const std::vector<std::uint8_t>& blob, std::uint32_t ver) {
+			Got g; Rd r{ blob };
+			ReadStanding(r, ver, g.st);
+			g.squad = FactionOf(ver, r.v<std::uint8_t>()); g.member = FactionOf(ver, r.v<std::uint8_t>()); g.owner = std::uint8_t(FactionOf(ver, r.v<std::uint8_t>()));
+			g.ok = r.ok; g.used = r.o == blob.size();
+			return g;
+		};
+		CHECK(Loads(208) && Loads(207) && Loads(206) && Loads(205) && !Loads(204) && !Loads(209), "SIM2 208, 207, 206, 205 load; 204 and 209 do not");
+
+		// 207: master M4b, 28 factions (15 human + 13 monsters from 15), length-prefixed
+		{
+			const auto g = load(build(207, 28), 207);
+			bool humans = true, monsters = true, solstheim = true;
+			for (int f = 0; f < 15; ++f) humans &= g.st.goodwill[f] == float(100 + f);
+			for (int f = 15; f < 28; ++f) monsters &= g.st.goodwill[f + 3] == float(100 + f);
+			for (int f = 15; f < 18; ++f) solstheim &= g.st.goodwill[f] == 0.f;
+			CHECK(g.ok && g.used, "207: the whole record is read (length byte honoured)");
+			CHECK(humans, "207: human goodwill keeps its index");
+			CHECK(monsters && g.st.goodwill[int(Faction::Wildlife)] == 115.f && g.st.goodwill[int(Faction::Dwemer)] == 127.f,
+			      "207: monster goodwill moves 15..27 -> 18..30 intact (Wildlife 15 -> 18, Dwemer 27 -> 30)");
+			CHECK(solstheim, "207: Skaal, Redoran, Reaver start at 0");
+			CHECK(g.st.notoriety == 42.f && g.st.rumors.size() == 3, "207: notoriety and rumour count");
+			CHECK(g.st.rumors.size() == 3 && g.st.rumors[0].faction == Faction::Wildlife && g.st.rumors[0].delta == -5.f && g.st.rumors[0].dueHours == 10.0 &&
+			      g.st.rumors[1].faction == Faction::Dwemer && g.st.rumors[1].delta == 7.f && g.st.rumors[2].faction == Faction::Stormcloak,
+			      "207: rumours land on the same faction (Wildlife, Dwemer, Stormcloak) with their values");
+			CHECK(g.squad == Faction::Wildlife && g.member == Faction::Dwemer && g.owner == kNoFaction, "207: squad and member factions shift; no owner stays none");
+		}
+		// 206: 21 entries (15 human + 6 monsters), no length byte
+		{
+			const auto g = load(build(206, 21), 206);
+			bool monsters = true, newer = true;
+			for (int f = 15; f < 21; ++f) monsters &= g.st.goodwill[f + 3] == float(100 + f);
+			for (int f = 24; f < kFactionCount; ++f) newer &= g.st.goodwill[f] == 0.f;
+			CHECK(g.ok && g.used, "206: the whole record is read (21 entries)");
+			CHECK(monsters && g.st.goodwill[int(Faction::Wildlife)] == 115.f && g.st.goodwill[int(Faction::Zombie)] == 120.f,
+			      "206: monster goodwill moves 15..20 -> 18..23 (Wildlife, Zombie)");
+			CHECK(newer && g.st.goodwill[int(Faction::Skaal)] == 0.f, "206: factions added later start at 0");
+			CHECK(g.st.rumors.size() == 3 && g.st.rumors[0].faction == Faction::Wildlife && g.st.rumors[1].faction == Faction::Zombie && g.squad == Faction::Wildlife &&
+			      g.member == Faction::Zombie, "206: rumours, squad and member land on Wildlife / Zombie");
+		}
+		// 205: 15 human entries, nothing to shift
+		{
+			const auto g = load(build(205, 15), 205);
+			CHECK(g.ok && g.used && g.st.goodwill[14] == 114.f && g.st.goodwill[int(Faction::Wildlife)] == 0.f && g.st.rumors.size() == 3 &&
+			      g.st.rumors[1].faction == Faction::Caravan, "205: 15 human entries keep their index");
+		}
+		// 208: today's layout, no shift (index 15 is Skaal)
+		{
+			const auto g = load(build(208, kFactionCount), 208);
+			bool same = true;
+			for (int f = 0; f < kFactionCount; ++f) same &= g.st.goodwill[f] == float(100 + f);
+			CHECK(g.ok && g.used && same && g.st.rumors.size() == 3 && g.st.rumors[0].faction == Faction::Skaal && g.squad == Faction::Skaal &&
+			      g.member == Faction(kFactionCount - 1), "208: no shift (15 is Skaal)");
+		}
+		// a corrupt 207 length past the table stays in bounds
+		{
+			const auto g = load(build(207, 40), 207);
+			CHECK(g.ok && g.st.goodwill[kFactionCount - 1] == float(100 + kFactionCount - 4), "207 with an over-long table: extra entries dropped, no overflow");
+		}
+	}
 
 	std::printf("\nstanding tests: %d passed, %d failed\n", gPass, gFails);
 	return gFails ? 1 : 0;

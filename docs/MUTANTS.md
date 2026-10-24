@@ -19,12 +19,13 @@ the stalker side. This document is the mutant side, mapped onto Skyrim's wildlif
 
 ## 2. Skyrim mapping
 
-Design decisions: vanilla, Dawnguard and Dragonborn creatures
+User decisions (Oct 9 2026, project notes): vanilla, Dawnguard and Dragonborn creatures
 only; the one Creation Club exception is "Plague of the Dead" for Anomaly's zombies. The core set below is built now;
 the rest of the table (section 2.1) is milestone M4b.
 
-Six monster factions are appended to `enum Faction` (ids 15-20, after the 15 human factions, so every saved human id
-keeps its value). A faction is a behaviour (its Anomaly community); several creatures can share one:
+Six monster factions are appended to `enum Faction` (ids 15-20 when M4 added them, after the 15 human factions, so every saved
+human id keeps its value; since co-save 208 the three Solstheim factions sit before them, so they are ids 18-23 today:
+`include/ALife/Core.h` `Faction`, docs/SOLSTHEIM.md). A faction is a behaviour (its Anomaly community); several creatures can share one:
 
 | Faction id | Name | Anomaly community (territory hours; never online) | Members (Skyrim.esm unless noted) | Lairs (location keywords) |
 |---|---|---|---|---|
@@ -35,7 +36,7 @@ keeps its value). A faction is a behaviour (its Anomaly community); several crea
 | `falmer` | Falmer | `predatory_night` (19-06; 06-18) | `LCharFalmerMelee` 01E77D, `LCharFalmerMissile` 01E77E, `LCharFalmerShaman` 01E77F, boss `LCharFalmerBoss` 05238F | LocTypeFalmerHive 130E4, LocSetDwarvenRuin 130F0 |
 | `zombie` | The Plague | `zombied` (any hour) | `ccBGSSSE003_LCharBGSSSE003ZombieMelee`, local id 822 in `ccbgssse003-zombies.esl` (Plague of the Dead; masters: the base game and DLCs only) | LocTypeWarlockLair 130EC (necromancers' work), LocTypeShipwreck 1929F (the drowned) |
 
-**M4b** (Oct 9 2026) appends seven more (ids 21-27) and adds kinds to existing factions. Dawnguard / Dragonborn records
+**M4b** (Oct 9 2026) appends seven more (ids 21-27 then, 24-30 since 208) and adds kinds to existing factions. Dawnguard / Dragonborn records
 are named `Dawnguard.esm|local id` / `Dragonborn.esm|local id` like the zombies; Dragonborn's own location keywords are
 stored as `04xxxxxx` (the vanilla load order) whatever index the game gave the plugin, so `[keyword_props]` can name them.
 
@@ -70,7 +71,7 @@ people there and the lair's monsters share the place.
 
 Anomaly behaviours copied in the core set: packs have an alpha (the squad's first member is its `leader` creature:
 an ice wolf for the larger wolf packs, a deathlord or gloomlurker for veteran draugr and falmer bands); hunters are drawn to dens
-and caves (`hunter` key in those overlays), where they meet the beasts. Left for M4b: mutants feeding on corpses.
+and caves (`hunter` key in those overlays), where they meet the beasts. Left for M4b: mutants feeding on corpses (not implemented on master: branch `t10b-feeding` is not merged).
 Lair hunters (M5g): factions in `alife.ltx [activity_factions] hunt_lairs` (hunters) target a lair while a monster
 squad holds it (priority `hunt_lair_weight`); `harvest_parts` factions (hunters, wanderers) take each beast's
 `monsters.ltx parts` (wolf / ice wolf / sabre cat / bear pelts, bear claws, skeever tails, troll fat, spriggan sap,
@@ -106,8 +107,9 @@ faction can be made a day hunter or a grazer (`vegetarian`) without a rebuild. A
 needs an enum entry (fixed-size per-faction tables).
 
 Blackreach is its own worldspace with no Tamriel world marker, so it is not on the graph; Falmer use the surface hives
-and Dwemer ruins. Giants, hagravens and dragons stay vanilla until M4b (no squads); `kind_map` keeps their places
-neutral.
+and Dwemer ruins. Giants and hagravens stayed vanilla until M4b (both are squads now, section 2); dragons are squads since
+M4c (docs/DRAGONS.md). `kind_map` still gives their places the neutral `default` preset; the giant and hagraven lairs come from
+the `[keyword_props]` overlays (`kw_giant_camp`, `kw_hagraven_nest`).
 
 ## 3. Lair and territory props (`config/props.ltx`)
 
@@ -153,7 +155,7 @@ neutral.
 
 ## 5. Relations (`config/factions.ltx`)
 
-- Every monster faction is an enemy of all 15 human factions (Anomaly: no relation book, everyone shoots them),
+- Every monster faction is an enemy of all 18 human factions (Anomaly: no relation book, everyone shoots them),
   except `draugr` and `zombie` vs `necromancer` and `vampire` (neutral: undead and the people who raise them).
 - Monsters are neutral to each other (Anomaly mutants do not hunt each other offline).
 - The player: monster squads use the vanilla creatures' own aggression online; standing, dialogue, tolls and
@@ -182,7 +184,8 @@ neutral.
 
 ## 7. Co-save
 
-Version 207 (M4b). The per-faction goodwill table is written with its length (28 entries now); a 206 save is read
+Version 207 (M4b). The per-faction goodwill table is written with its length (28 entries in 207; 32 today: co-save 208 with the
+Solstheim factions, plus M4c's dragon; `include/ALife/SaveFormat.h`); a 206 save is read
 with 21, a 205 save with 15, and factions added since start at 0. After a load, every monster kind the save has no
 squads of (all of them in a 205 save, the M4b kinds in a 206 save) gets the start fill of its respawn entries only, so
 its lairs are populated at once instead of over days of respawn ticks.
@@ -204,7 +207,7 @@ its lairs are populated at once instead of over days of respawn ticks.
   the zombie-held warlock lairs): tune with the spawn `num` values, the creature stats and `respawn_idle`.
 - The harness takes the zombie creature as available (it has no load order); in game it exists only with
   `ccbgssse003-zombies.esl` loaded.
-- Lab (background-only test run): a draugr squad online at a
+- Lab (a separate MO2 test instance, background-only via `tools/lab_mutants.sh` + `guarded_launch.ps1`): a draugr squad online at a
   barrow at night, a wildlife pack online in the wild by day, Plague of the Dead zombies online, save/load keeps the
   monster squads (co-save 206; a 205 save still loads), `ALife.log` without errors.
 - Result (Oct 9 2026, T2 run lab-0451): wolf pack #225 (alpha ice wolf + 5 wolves) online at Brood Cavern at hour 8; draugr

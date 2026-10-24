@@ -30,4 +30,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
   _CRT_SECURE_NO_WARNINGS NOMINMAX WIN32_LEAN_AND_MEAN
 )
 target_compile_options(${PROJECT_NAME} PRIVATE /permissive- /Zc:preprocessor /W3 /utf-8 /EHsc)
+# Release keeps a PDB next to the DLL (same optimized code: /OPT:REF,ICF as without /DEBUG) so crash-log offsets map to functions
+# (tools: the docs repo's tools/pdbaddr.py). Only the DLL ships.
+target_compile_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Release>:/Zi>)
+target_link_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Release>:/DEBUG /OPT:REF /OPT:ICF>)
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "ALife")

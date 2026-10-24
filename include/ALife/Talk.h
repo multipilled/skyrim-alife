@@ -7,9 +7,12 @@
 
 namespace ALife::Talk {
 enum class Choice : std::uint8_t { None = 0, Pay, Poor, Refuse, Fight, Peace, Defy, News, Trade,
-	                                Work, Accept, Decline, TurnIn, Deliver, Abandon };   // jobs (docs/TASKS.md): handled by Jobs
+	                                Work, Accept, Decline, TurnIn, Deliver, Abandon,     // jobs (docs/TASKS.md): handled by Jobs
+	                                Recruit, HireAsk, Hire1, Hire2, Follow, Wait, Move, HoldFire, Attack, Loot, NoLoot, Gear, Dismiss,   // companions (docs/COMPANIONS.md)
+	                                Heal, WRob, Finish, Spare, RobGo, NoMercy };   // the wounded and the yielded (docs/WOUNDED.md): handled by Wounded
 
-enum Mode : int { kNone = 0, kToll = 1, kChallenge = 2, kGreet = 3 };
+enum Mode : int { kNone = 0, kToll = 1, kChallenge = 2, kGreet = 3, kCompanion = 4,   // kCompanion: the player talks to a squad travelling with them
+	              kWounded = 5, kYielded = 6 };                                   // a member who is down / who yielded (docs/WOUNDED.md)
 
 void Init();                                   // kDataLoaded: read talk.ltx, resolve the globals and responses of ALifeTalk.esp
 bool Ready();
@@ -18,6 +21,10 @@ void Reset();
 // every tick: publish the situation of the squad under the crosshair (or keep it while a conversation is open), expire subtitles
 void Pump(float a_dt);
 void Publish(int a_mode, int a_toll);          // set the globals now (the debug activation uses this)
+// Everything the dialogue reads about this squad in this mode: jobs (offers to a squad that greets you; the hand-in of a job squad
+// travelling with you, mode kCompanion), companion topics, then the mode / toll globals. The crosshair pump and the debug activation
+// both go through it, so they can never publish different situations (W3: the debug talk left the job state out in companion mode).
+void PublishSquad(Group* a_g, int a_mode, int a_toll);
 void Diagnose(RE::Actor* a_speaker);           // debug: which of the opening lines' conditions hold for this speaker right now
 void Bind(RE::Actor* a);                        // puts the actor the player is about to talk to into the dialogue quest's Speaker alias
 void Hold(float a_seconds);

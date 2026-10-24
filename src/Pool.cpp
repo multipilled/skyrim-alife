@@ -213,6 +213,14 @@ int Unreserved(RaceId a_r, Sex a_s)
 	return n;
 }
 
+// An actor the engine can run AI on right now. One moved, enabled or placed this frame can have 3D but no parent cell yet:
+// StartCombat on it read a null cell in the engine (M5b lab run 2, Oct 9: 38561 StartCombat -> 39444 at +0x10).
+bool InWorld(RE::Actor* a_a)
+{
+	auto* c = a_a ? a_a->GetParentCell() : nullptr;
+	return c && c->IsAttached() && a_a->Is3DLoaded() && !a_a->IsDisabled();
+}
+
 RE::Actor* ActorOf(const Member& a_m)
 {
 	if (!IsHumanFaction(a_m.faction)) return Creatures::ActorOf(a_m);   // monster members are placed creatures, not pool actors
@@ -319,6 +327,19 @@ void Release(Member& a_m)
 	s.inUse = false;
 	s.debugFill = false;
 	if (!s.reserved || s.owner != a_m.id) a_m.poolLocal = -1;   // sticky members keep their face
+}
+
+bool Tie(Member& a_m)
+{
+	if (a_m.poolLocal < 0 || a_m.poolLocal >= int(gSlots.size())) return false;
+	auto& s = gSlots[a_m.poolLocal];
+	if (s.owner == a_m.id && s.reserved) return true;
+	if (s.reserved || StickyUsed() >= kStickyCap) return false;
+	s.reserved = true;
+	s.owner = a_m.id;
+	a_m.sticky = true;
+	a_m.waitlisted = false;
+	return true;
 }
 
 void ReleaseSticky(Member& a_m)

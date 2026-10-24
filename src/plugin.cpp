@@ -57,6 +57,11 @@ namespace {
 	// elsewhere could reach it (a main-menu "Continue" loaded a save during a background test). The bridge pushes its events
 	// straight into BSInputEventQueue, so it keeps working.
 	void NoPoll(RE::BSIInputDevice*, float) {}
+
+	// ... and never hides the user's pointer: the game hides the OS cursor (user32 ShowCursor, its only cursor import), so the
+	// pointer vanished whenever the user moved it over a visible part of the bottom-most game window (T13b run A, Oct 15: the
+	// launcher's watchdog fired CURSOR). Hide requests report -1 and show requests 0, so a "until hidden / shown" loop still ends.
+	int WINAPI KeepCursor(BOOL a_show) { return a_show ? 0 : -1; }
 	void MuteRealInput()
 	{
 		REL::Relocation<std::uintptr_t> kb{ RE::VTABLE_BSWin32KeyboardDevice[0] };
@@ -99,7 +104,9 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 	if (ALife::Settings::Get().bDebug && ALife::Settings::Get().bBackground) {
 		const bool hooked = SetWindowsHookExW(WH_CBT, NoActivate, nullptr, GetCurrentThreadId()) != nullptr;
 		MuteRealInput();
-		ALife::Log::Line(std::string("[init] background mode: window activation ") + (hooked ? "blocked" : "NOT blocked (hook failed)") + ", real keyboard/mouse/gamepad muted");
+		const bool cursor = SKSE::PatchIAT(KeepCursor, "USER32.dll", "ShowCursor") != 0;
+		ALife::Log::Line(std::string("[init] background mode: window activation ") + (hooked ? "blocked" : "NOT blocked (hook failed)") +
+						 ", real keyboard/mouse/gamepad muted, OS cursor " + (cursor ? "never hidden" : "NOT kept (ShowCursor patch failed)"));
 	}
 	SKSE::GetMessagingInterface()->RegisterListener(OnMessage);
 	ALife::Save::Register();

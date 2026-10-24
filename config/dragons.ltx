@@ -1,0 +1,30 @@
+; Dragons as A-Life actors (docs/DRAGONS.md, Anomaly heli_alife.script). Distances in world units (1 km ~ 70000), times in game hours.
+; Difficulty channel of every number (T21): [dragons] = the Dragons channel (frequency, level), [-] not scaled. The board reads
+; them only through Board::DragonEff() (ScaledDragons), never per rule.
+
+[dragons]
+max_dragons      = 2        ; [dragons] dragons alive at once, world-wide (Tamriel); 0 = none
+respawn_days     = 3        ; [dragons] a new dragon this long after the last was made or killed (vanilla WIWaitDragon is 3 days)
+level_mult       = 1.0      ; [dragons] x the player level when a new dragon's tier is picked
+fly_speed        = 120000   ; [-] straight line, any terrain (walking squads: 20000)
+stay_min         = 1.5      ; [-] hours at a place ... (Anomaly heli: 6800 s ~ 1.9 h)
+stay_max         = 4        ; [-] ... at most
+prey_bonus       = 0.5      ; [-] place weight x (1 + this x human squads staying there)
+lair_weight      = 3        ; [-] dragon lairs (LocTypeDragonLair)
+wall_weight      = 2        ; [-] word walls (dragon_places.ltx, tools/gen_dragon_places.py)
+high_weight      = 1        ; [-] wilderness at least high_z up
+high_z           = 10000    ; [-]
+flee_hours       = 6        ; [-] novice / advanced human squads that fled a dragon keep away this long (Anomaly stalker panic)
+online_distance  = 16000    ; [-] plugin: a dragon comes on screen this close to the player (when the vanilla timer allows)
+offline_distance = 24000    ; [-] plugin: and leaves the screen beyond this
+spawn_height     = 2500     ; [-] plugin: placed this far above the place's marker, so it arrives flying
+online_max_hours = 2        ; [-] plugin: then it flies off (sent offline with its wounds)
+
+[tiers]   ; squad section = from player level (x level_mult); LCharDragonAny steps 1 / 18 / 27 / 36 / 45
+dragon_1 = 1
+dragon_2 = 18
+dragon_3 = 27
+dragon_4 = 36
+dragon_5 = 45
+
+[places]  ; location FormID = weight: overrides the lair / word wall / high-country weights (0 removes a place)

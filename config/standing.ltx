@@ -21,6 +21,9 @@ hunter      = 180      ; woodsfolk
 mercenary   = 60       ; sellswords: pragmatic, owe you nothing
 mage        = 120      ; travelling scholars and College mages: curious, open
 caravan     = 200      ; Khajiit merchants: courteous to anyone whose coin is good; wary of those who have robbed a caravan
+skaal       = -120     ; the Skaal keep to themselves: wary of outsiders until one has helped them
+redoran     = 40       ; Raven Rock's guard: correct and watchful with travellers
+reaver      = -700     ; Solstheim's raiders: they take what they can, the odds decide
 
 ; boldness of outlaws: how readily they attack when they think they hold the advantage (0..1)
 [opportunism]
@@ -29,6 +32,7 @@ forsworn    = 0.25
 silverhand  = 0.5
 necromancer = 0.15
 vampire     = 0.8
+reaver      = 0.9
 
 ; how fiercely a faction defends the ground it holds against anyone it dislikes (0..1)
 [territorial]
@@ -41,6 +45,9 @@ imperial    = 0.6      ; forts and camps challenge armed strangers they distrust
 stormcloak  = 0.6
 dawnguard   = 0.4
 vigilant    = 0.4
+skaal       = 0.5      ; the village and its hunting grounds
+redoran     = 0.6
+reaver      = 0.7
 
 ; challenge armed strangers rather than hunting them (law enforcement, orders, zealotry)
 [lawful]
@@ -49,10 +56,12 @@ stormcloak = 1
 thalmor    = 1
 dawnguard  = 1
 vigilant   = 1
+redoran    = 1
 
 ; offers a toll before it attacks
 [parley]
 bandit = 1
+reaver = 1
 
 ; bolder in the dark
 [nocturnal]
@@ -197,6 +206,32 @@ label      = A fellow child of Elsweyr
 when       = race:khajiit
 caravan    = 300
 
+; ---- Solstheim (Dragonborn)
+[rule.skaal_friend]
+label      = Freed the Skaal from Miraak's hold
+when       = skaal
+skaal      = 900
+redoran    = 100
+reaver     = -150
+
+[rule.raven_rock]
+label      = A friend of Raven Rock
+when       = ravenrock
+redoran    = 700
+skaal      = 100
+reaver     = -150
+
+[rule.dunmer_redoran]
+label      = A Dunmer among Dunmer
+when       = race:dunmer
+redoran    = 150
+skaal      = -60
+
+[rule.nord_skaal]
+label      = A Nord of the old ways
+when       = race:nord
+skaal      = 100
+
 [rule.dark_brotherhood]
 label      = Whispers follow the Brotherhood
 when       = brotherhood
@@ -306,6 +341,7 @@ stormcloak = -450
 thalmor    = -450
 dawnguard  = -300
 vigilant   = -300
+redoran    = -450
 
 [rule.wanted_badly]
 label      = A dangerous criminal in this hold
@@ -315,6 +351,7 @@ stormcloak = -900
 thalmor    = -900
 dawnguard  = -600
 vigilant   = -600
+redoran    = -900
 
 ; ---- reputation for killing
 [rule.murderer]
@@ -329,6 +366,9 @@ mercenary  = -100
 mage       = -150
 dawnguard  = -150
 vigilant   = -150
+skaal      = -150
+redoran    = -150
+reaver     = 120
 bandit     = 120
 silverhand = 60
 necromancer = 60
@@ -346,6 +386,9 @@ mercenary  = -300
 mage       = -400
 dawnguard  = -400
 vigilant   = -400
+skaal      = -400
+redoran    = -400
+reaver     = 130
 bandit     = 130
 silverhand = 100
 necromancer = 100

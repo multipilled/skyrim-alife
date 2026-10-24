@@ -84,6 +84,7 @@ void World::Finalize(const Config& a_cfg, int a_neighbours)
 		n.dungeon = n.kind == Kind::Dungeon || n.kind == Kind::Crypt || n.kind == Kind::DwarvenRuin || n.kind == Kind::Mine ||
 		            n.kind == Kind::BanditCamp || n.kind == Kind::VampireLair || n.kind == Kind::WarlockLair || n.kind == Kind::FalmerHive ||
 		            n.kind == Kind::WerewolfLair || n.kind == Kind::DragonPriestLair || n.kind == Kind::HagravenNest;
+		n.dragon = DragonWeight(a_cfg, n);
 	}
 	m_city = UINT32_MAX;
 	for (auto& n : nodes) if (n.city) { m_city = n.id; break; }

@@ -1,0 +1,8 @@
+; G2 fixture: values outside the range LoadPartyConfig clamps to, a bad boolean, an unknown faction, a reversed pair
+[companions]
+max_members   = 12                  ; EXPECT num.range
+max_squads    = 2
+paid_factions = wanderer, pirates   ; EXPECT ref.faction
+loot_default  = maybe               ; EXPECT num.bool
+[price_factor]
+veteran = 2.4, 1.8                  ; EXPECT num.range

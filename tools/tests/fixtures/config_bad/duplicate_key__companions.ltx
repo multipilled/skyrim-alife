@@ -1,0 +1,6 @@
+; G2 fixture: a duplicate key in one section (the later line silently wins)
+[companions]
+max_members = 6
+max_squads  = 2
+day_gold    = 250
+day_gold    = 300   ; EXPECT dup.key

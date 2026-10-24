@@ -2,11 +2,13 @@
 // dialogue globals, runs the ALifeTasks quest (objectives, aliases, markers), moves money, items and goodwill, and saves.
 #include "ALife/Jobs.h"
 
+#include "ALife/Companions.h"
 #include "ALife/Forms.h"
 #include "ALife/Log.h"
 #include "ALife/Ltx.h"
 #include "ALife/Rep.h"
 #include "ALife/Settings.h"
+#include "ALife/StashesPlugin.h"
 #include "ALife/Systems.h"
 
 namespace ALife::Jobs {
@@ -22,6 +24,8 @@ namespace {
 	RE::TESGlobal* gState{ nullptr };
 	RE::TESQuest* gQuest{ nullptr };
 	RE::TESBoundObject* gParcel{ nullptr };
+	RE::TESBoundObject* gSatchel{ nullptr };                         // recover: the satchel on the body (M5e)
+	std::array<RE::TESBoundObject*, kFactionCount> gCorpse{};        // recover: [recover] corpse_<faction> (null: a pool face)
 	int gSlots{ kMaxSlots };
 	std::array<RE::FormID, 2 * kMaxSlots> gMarker{};   // created XMarkers: Target0..3, Giver0..3 (alias ids 0..7)
 	std::array<int, kMaxSlots> gShown{};               // objective shown per slot: 0 none, 1 work, 2 return
@@ -137,20 +141,42 @@ namespace {
 
 	const Group* TargetGroup(const Task& t)
 	{
-		if (t.type == TaskType::Bounty || t.type == TaskType::Delivery) return Sim::FindGroup(t.target);
-		if (t.type == TaskType::Assault)
+		if (t.type == TaskType::Bounty || t.type == TaskType::Delivery || t.type == TaskType::Hunt) return Sim::FindGroup(t.target);
+		if (t.type == TaskType::Defend)
+			if (const Group* g = Sim::FindGroup(t.extra); g && g->livingCount() > 0) return g;   // the wave on its way
+		if (t.type == TaskType::Assault || t.type == TaskType::Rescue)
 			for (auto id : t.pinned)
 				if (const Group* g = Sim::FindGroup(id); g && g->livingCount() > 0) return g;
 		return nullptr;
 	}
 
+	// the work marker: where the job is done
+	void PlaceWork(int a_alias, const Task& t)
+	{
+		switch (t.type) {
+		case TaskType::Fetch: Place(a_alias, Sim::FindGroup(t.giver), t.node); break;   // the items are anywhere, the giver is the place to go
+		case TaskType::Assault: Place(a_alias, nullptr, t.node); break;                  // the place itself
+		case TaskType::Escort: Place(a_alias, nullptr, t.dest); break;                   // the destination
+		case TaskType::Rescue: Place(a_alias, nullptr, t.node); break;                   // the captors' place (the captive is held there)
+		case TaskType::Recover:                                                          // the body once it lies there, else the place
+			if (auto* body = t.corpse ? RE::TESForm::LookupByID<RE::TESObjectREFR>(t.corpse) : nullptr; body && !body->IsDeleted()) {
+				if (auto* mk = Marker(a_alias); mk && mk != body) mk->MoveTo(body);
+			} else Place(a_alias, nullptr, t.node);
+			break;
+		case TaskType::Defend: Place(a_alias, nullptr, t.node); break;                   // the place you hold
+		default: Place(a_alias, TargetGroup(t), t.node); break;
+		}
+	}
+
+	// the return marker: the giver (rescue: the giver too; the freed captive follows you there)
+	void PlaceReturn(int a_alias, const Task& t) { Place(a_alias, Sim::FindGroup(t.giver), t.node); }
+
 	void MoveMarkers()
 	{
 		for (auto& t : gT.active) {
 			if (t.slot < 0 || t.slot >= gSlots) continue;
-			if (t.type == TaskType::Assault) Place(t.slot, nullptr, t.node);   // the place itself
-			else if (t.type != TaskType::Fetch) Place(t.slot, TargetGroup(t), t.node);
-			Place(kMaxSlots + t.slot, Sim::FindGroup(t.giver), t.node);
+			PlaceWork(t.slot, t);
+			PlaceReturn(kMaxSlots + t.slot, t);
 		}
 	}
 
@@ -160,10 +186,8 @@ namespace {
 		const int index = 10 * s + (a_return ? 1 : 0);
 		const int alias = a_return ? kMaxSlots + s : s;
 		SetText(index, Tasks::Objective(t, a_return));
-		if (a_return) Place(alias, Sim::FindGroup(t.giver), t.node);
-		else if (t.type == TaskType::Fetch) Place(alias, Sim::FindGroup(t.giver), t.node);   // fetch: the items are anywhere, the giver is the place to go
-		else if (t.type == TaskType::Assault) Place(alias, nullptr, t.node);
-		else Place(alias, TargetGroup(t), t.node);
+		if (a_return) PlaceReturn(alias, t);
+		else PlaceWork(alias, t);
 		std::erase_if(gHide, [&](const Hide& h) { return h.index == index; });   // only this objective: a just-completed sibling still leaves
 		Papyrus("Show", gQuest, index, alias, Marker(alias));
 		gShown[s] = a_return ? 2 : 1;
@@ -205,13 +229,64 @@ namespace {
 		}
 	}
 
+	// recover: the body the plugin laid out goes when its job ends (it was made persistent)
+	void RemoveBody(const Task& t)
+	{
+		if (t.type != TaskType::Recover || !t.corpse) return;
+		auto* body = RE::TESForm::LookupByID<RE::TESObjectREFR>(t.corpse);
+		if (!body || body->IsDeleted()) return;
+		body->Disable();
+		body->SetDelete(true);
+	}
+
+	// recover (docs/TASKS.md section 8): once the player is within recover_spawn of the place and its cell is loaded, an actor of
+	// the giver's faction is killed beside the place's world marker with the satchel in its pack
+	void LayOutBodies()
+	{
+		auto* pc = RE::PlayerCharacter::GetSingleton();
+		if (!pc || !gSatchel) return;
+		for (auto& t : gT.active) {
+			if (t.type != TaskType::Recover || t.stage != TaskStage::Open || t.corpse) continue;
+			const GraphNode* n = Graph::Node(t.node);
+			auto* mk = n ? Graph::MarkerOf(*n) : nullptr;
+			auto* cell = mk ? mk->GetParentCell() : nullptr;
+			if (!cell || !cell->IsAttached() || Forms::WsIndex(pc->GetWorldspace()) != int(n->ws)) continue;
+			const auto pp = pc->GetPosition(), mp = mk->GetPosition();
+			if ((pp.x - mp.x) * (pp.x - mp.x) + (pp.y - mp.y) * (pp.y - mp.y) > gT.cfg.recoverSpawn * gT.cfg.recoverSpawn) continue;
+			RE::TESBoundObject* base = gCorpse[int(t.giverFaction)];
+			if (!base) {   // no list for the faction: a pool face (a fresh actor of a pool NPC base, not the pool actor itself)
+				auto& slots = Pool::Slots();
+				for (std::size_t k = 0; k < slots.size() && !base; ++k)
+					if (auto* npc = RE::TESForm::LookupByID<RE::TESNPC>(slots[(t.id * 7 + k) % slots.size()].baseId)) base = npc;
+			}
+			if (!base) continue;
+			auto ref = mk->PlaceObjectAtMe(base, true);
+			auto* a = ref ? ref->As<RE::Actor>() : nullptr;
+			if (!a) continue;
+			a->AddObjectToContainer(gSatchel, nullptr, 1, nullptr);
+			a->KillImmediate();
+			t.corpse = a->GetFormID();
+			Log::Line("[task] recover: body " + std::to_string(t.corpse) + " laid out at " + n->name);
+			PlaceWork(t.slot, t);
+		}
+	}
+
 	void Apply(const std::vector<TaskEvent>& ev)
 	{
 		auto* pc = RE::PlayerCharacter::GetSingleton();
+		if (auto* party = gT.party; party && !gT.partyEvents.empty()) {   // job companions joined or left (escort, a freed captive)
+			const auto pev = std::move(gT.partyEvents);
+			gT.partyEvents.clear();
+			Companions::ApplyJobEvents(pev);
+		}
 		for (auto& e : ev) {
 			const Task& t = e.task;
 			const std::string what = Tasks::Objective(t, false);
 			switch (e.kind) {
+			case TaskEvent::Kind::Progress:   // the next wave / mark: new text and target on the same objective
+				Show(t, false);
+				Notify(t.type == TaskType::Hunt ? "Next mark: " + what : "Another wave: " + what);
+				break;
 			case TaskEvent::Kind::Accepted:
 				Papyrus("Begin", gQuest);
 				if (t.type == TaskType::Delivery && pc && gParcel) pc->AddObjectToContainer(gParcel, nullptr, 1, nullptr);
@@ -230,17 +305,20 @@ namespace {
 			case TaskEvent::Kind::Done:
 			case TaskEvent::Kind::Failed: {
 				const bool done = e.kind == TaskEvent::Kind::Done;
+				std::int32_t gold = e.gold;
+				if (done && gold > 0) StashPlugin::OnTaskDone(gold, t);   // a job may pay with a stash instead (docs/STASHES.md)
 				Mark(t.slot, done ? 2 : 3);
+				RemoveBody(t);
 				if (pc && e.takeItem && e.takeCount > 0)
 					if (auto* obj = RE::TESForm::LookupByID<RE::TESBoundObject>(e.takeItem))
 						pc->RemoveItem(obj, e.takeCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-				if (pc && e.gold > 0 && Forms::R().gold) pc->AddObjectToContainer(Forms::R().gold, nullptr, e.gold, nullptr);
+				if (pc && gold > 0 && Forms::R().gold) pc->AddObjectToContainer(Forms::R().gold, nullptr, gold, nullptr);
 				if (e.goodwill != 0.f) Rep::S().OnTask(t.giverFaction, e.goodwill);
 				if (e.memory != 0.f)
 					if (Group* g = Sim::FindGroup(t.giver)) g->memory = std::clamp(g->memory + e.memory, -1000.f, 1000.f);
 				if (done) {
 					GiveConsumable(t.giver);
-					Notify("Job done: " + what + ". Paid " + std::to_string(e.gold) + " gold");
+					Notify("Job done: " + what + (gold > 0 || e.gold == 0 ? ". Paid " + std::to_string(gold) + " gold" : ". Paid with a stash"));
 				} else {
 					Notify("Job failed (" + e.why + "): " + what);
 				}
@@ -260,9 +338,9 @@ namespace {
 			case Talk::Choice::Accept:
 				if (!gT.Accept(Sim::B(), p.squad, now, gHost, ev)) Notify("The job is no longer on offer.");
 				break;
-			case Talk::Choice::TurnIn: gT.TurnIn(p.squad, now, gHost, ev); break;
+			case Talk::Choice::TurnIn: gT.TurnIn(Sim::B(), p.squad, now, gHost, ev); break;
 			case Talk::Choice::Deliver: gT.Deliver(p.squad, now, gHost, ev); break;
-			case Talk::Choice::Abandon: gT.Abandon(p.squad, now, ev); break;
+			case Talk::Choice::Abandon: gT.Abandon(Sim::B(), p.squad, now, ev); break;
 			default: break;   // asking for work or turning it down changes nothing
 			}
 		}
@@ -274,6 +352,7 @@ namespace {
 	{
 		gRestore = false;
 		gShown.fill(0);
+		gT.Rebind(Sim::B());
 		for (auto& t : gT.active) {
 			if (t.slot < 0 || t.slot >= kMaxSlots) continue;
 			const bool ret = t.stage == TaskStage::Ready && t.type != TaskType::Delivery;
@@ -309,6 +388,7 @@ void Init()
 	gOffer = gState = nullptr;
 	gQuest = nullptr;
 	gParcel = nullptr;
+	gSatchel = nullptr;
 	auto* dh = RE::TESDataHandler::GetSingleton();
 	if (!dh || !dh->LookupModByName(kPlugin)) { Log::Line("[task] ALifeTalk.esp is not loaded: no jobs"); return; }
 	Ltx talk, tl;
@@ -325,6 +405,16 @@ void Init()
 	if (!LoadTaskConfig(tl, gT.cfg, err)) { Log::Line("[task] tasks.ltx: " + err); return; }
 	gT.cfg.maxActive = std::min(gT.cfg.maxActive, gSlots);
 	gT.cfg.parcel = gParcel ? gParcel->GetFormID() : 0;
+	// M5e: the satchel (talk.ltx from the ESP builder, else the tasks.ltx spec), the corpse lists, the party for job companions
+	if (auto* s = dh->LookupForm(Hex(talk.Get("tasks", "satchel", "0")), kPlugin)) gSatchel = s->As<RE::TESBoundObject>();
+	if (!gSatchel)
+		if (const auto id = ResolveSpec(gT.cfg.satchelSpec)) gSatchel = RE::TESForm::LookupByID<RE::TESBoundObject>(id);
+	gT.cfg.satchel = gSatchel ? gSatchel->GetFormID() : 0;
+	if (!gSatchel) gT.cfg.satchelSpec.clear();   // no satchel: no recover jobs
+	gCorpse.fill(nullptr);
+	for (int f = 0; f < kFactionCount; ++f)
+		if (const auto id = ResolveSpec(gT.cfg.corpse[f])) gCorpse[f] = RE::TESForm::LookupByID<RE::TESBoundObject>(id);
+	gT.party = Companions::Model();
 	int items = 0, missing = 0;
 	for (auto& list : gT.cfg.fetch)
 		for (auto& it : list) {
@@ -336,13 +426,15 @@ void Init()
 		}
 	gReady = gOffer && gState && gQuest && gParcel;
 	Log::Line(std::string("[task] ") + (gReady ? "ready" : "NOT ready") + ": quest " + (gQuest ? "ok" : "missing") + ", globals " +
-			  (gOffer && gState ? "ok" : "missing") + ", parcel " + (gParcel ? "ok" : "missing") + ", fetch items " + std::to_string(items) +
+			  (gOffer && gState ? "ok" : "missing") + ", parcel " + (gParcel ? "ok" : "missing") + ", satchel " + (gSatchel ? "ok" : "missing (no recover jobs)") +
+			  ", fetch items " + std::to_string(items) +
 			  (missing ? " (" + std::to_string(missing) + " not found)" : ""));
 }
 
 void Reset()
 {
 	gT.Reset();
+	gT.partyEvents.clear();
 	gMarker.fill(0);
 	gShown.fill(0);
 	gPending.clear();
@@ -355,6 +447,7 @@ void Reset()
 void PublishFor(const Group* g)
 {
 	if (!gReady) return;
+	gT.scale = TaskScaleFrom(Sim::Cfg());   // T21 difficulty: Diff(Tasks) / Diff(Economy), read here and in Tick / Debug
 	int offer = 0, state = 0;
 	if (g && Sim::BoardReady()) {
 		state = gT.StateFor(g->id, gHost);
@@ -364,6 +457,8 @@ void PublishFor(const Group* g)
 	gState->value = float(state);
 }
 
+bool Holds(std::uint64_t squad) { return gT.IsTarget(squad) || gT.IsPinned(squad); }
+
 void OnChoice(std::uint64_t squad, Talk::Choice c)
 {
 	gPending.push_back({ squad, c });
@@ -372,6 +467,7 @@ void OnChoice(std::uint64_t squad, Talk::Choice c)
 void Tick(float dt)
 {
 	if (!gReady || !Sim::BoardReady()) return;
+	gT.scale = TaskScaleFrom(Sim::Cfg());
 	if (gRestore) RestoreJournal();
 	RunChoices();
 	if ((gUpdate += dt) >= 1.f) {
@@ -379,6 +475,7 @@ void Tick(float dt)
 		std::vector<TaskEvent> ev;
 		gT.Update(Sim::B(), Sim::Hours(), gHost, ev);
 		Apply(ev);
+		LayOutBodies();
 	}
 	if ((gMove += dt) >= 2.f) {
 		gMove = 0.f;
@@ -414,9 +511,15 @@ void LoadFrom(SKSE::SerializationInterface* a, std::uint32_t ver, std::uint32_t 
 		RE::FormID out = 0;
 		gMarker[k] = id && a->ResolveFormID(id, out) ? out : 0;
 	}
-	auto fix = [&](Task& t) { RE::FormID out = 0; t.item = t.item && a->ResolveFormID(t.item, out) ? out : 0; };
+	auto fix = [&](Task& t) {
+		RE::FormID out = 0;
+		t.item = t.item && a->ResolveFormID(t.item, out) ? out : 0;
+		out = 0;
+		t.corpse = t.corpse && a->ResolveFormID(t.corpse, out) ? out : 0;   // recover: the body (a new one is laid out when it is gone)
+	};
 	for (auto& t : gT.active) fix(t);
 	for (auto& [id, o] : gT.offers) fix(o.task);
+	if (Sim::BoardReady()) gT.Rebind(Sim::B());   // pinned / forced / held are not saved (SIM2 is read before TASK)
 	gRestore = true;
 	Log::Line("[task] loaded " + std::to_string(gT.active.size()) + " jobs, " + std::to_string(gT.offers.size()) + " offers");
 }
@@ -426,6 +529,7 @@ void Debug(const std::string& a_args)
 {
 	std::lock_guard l(Sim::Lock());
 	if (!gReady || !Sim::BoardReady()) { Log::Line("[task] debug: not ready"); return; }
+	gT.scale = TaskScaleFrom(Sim::Cfg());
 	const auto parts = SplitList(a_args, ' ');
 	const std::string verb = parts.empty() ? "list" : parts[0];
 	const double now = Sim::Hours();
@@ -486,13 +590,8 @@ void Debug(const std::string& a_args)
 			if (t.type != TaskType::Bounty || t.stage != TaskStage::Open) continue;
 			Group* g = Sim::FindGroup(t.target);
 			if (!g) continue;
-			if (!g->online && Sim::GroupsOnline() >= kMaxOnlineGroups)   // every on-screen slot taken: a bystander squad steps off screen
-				for (auto& o : Sim::Groups())
-					if (o.online && o.id != t.giver && o.id != t.target) {
-						Log::Line("[task] debug: squad #" + std::to_string(o.id) + " sent off screen to make room");
-						Online::SendOffline(o, false);
-						break;
-					}
+			if (!g->online && Online::AtBudget())   // the on-screen budget is full: the furthest bystander steps off screen (never a companion)
+				Online::MakeRoom({ t.giver, t.target }, "roomForSummon");
 			const bool ok = g->online || Online::BringOnlineEx(*g, true, true);
 			Log::Line("[task] debug: bounty target squad #" + std::to_string(g->id) + (ok ? " is on screen" : " could not come on screen"));
 			return;
@@ -500,28 +599,50 @@ void Debug(const std::string& a_args)
 		Log::Line("[task] debug: no open bounty");
 		return;
 	}
-	if (verb == "kill") {   // the open bounty's target dies where it stands (on screen: killed in the world), then the rest of its squad
+	if (verb == "kill") {   // the open bounty's target / the hunt's current mark dies where it stands (on screen: killed in the world, then the
+		                    // rest of its squad), the defend wave or the rescue's captors die whole
+		auto killOne = [](Group& g, Member& m) {
+			if (!m.alive()) return;
+			RE::Actor* a = g.online ? (IsHumanFaction(g.faction) ? Pool::ActorOf(m) : Creatures::ActorOf(m)) : nullptr;
+			if (a && !a->IsDead()) a->KillImmediate();
+			else if (!a) { m.health = 0.f; Sim::OnGroupMemberDied(g, m); }
+			Log::Line("[task] debug: killed " + m.name + (a ? " in the world" : " offline"));
+		};
+		auto killAll = [&](std::uint64_t id) {
+			if (Group* g = Sim::FindGroup(id)) for (auto& m : g->members) killOne(*g, m);
+		};
 		for (auto& t : gT.active) {
-			if (t.type != TaskType::Bounty || t.stage != TaskStage::Open) continue;
-			Group* g = Sim::FindGroup(t.target);
-			if (!g) continue;
-			for (auto& m : g->members) {
-				if (m.id != t.targetMember || !m.alive()) continue;
-				if (auto* a = g->online ? Pool::ActorOf(m) : nullptr) {
-					a->KillImmediate();
-					Log::Line("[task] debug: killed " + m.name + " in the world");
-					for (auto& o : g->members)   // the rest too: no fight with the giver's squad
-						if (o.id != m.id && o.alive())
-							if (auto* b = Pool::ActorOf(o); b && !b->IsDead()) b->KillImmediate();
-				} else {
-					m.health = 0.f;
-					Sim::OnGroupMemberDied(*g, m);
-					Log::Line("[task] debug: killed " + m.name + " offline");
-				}
+			if (t.stage != TaskStage::Open) continue;
+			if (t.type == TaskType::Bounty || t.type == TaskType::Hunt) {
+				Group* g = Sim::FindGroup(t.target);
+				if (!g) continue;
+				for (auto& m : g->members)
+					if (m.id == t.targetMember && m.alive()) {
+						const bool online = g->online;
+						killOne(*g, m);
+						if (online) killAll(g->id);   // the rest too: no fight with the giver's squad
+						return;
+					}
+			} else if (t.type == TaskType::Defend && t.extra) {
+				killAll(t.extra);
+				return;
+			} else if (t.type == TaskType::Rescue) {
+				for (auto id : t.pinned) killAll(id);
 				return;
 			}
 		}
-		Log::Line("[task] debug: no open bounty");
+		Log::Line("[task] debug: no open bounty, hunt, defend or rescue");
+		return;
+	}
+	if (verb == "rank") {   // the top 20 of the rankings (pda.script: most dangerous people)
+		const auto r = gT.Rankings(Sim::B());
+		Log::Line("[task] rankings: " + std::to_string(r.size()) + " people; most dangerous in Skyrim:");
+		for (std::size_t i = 0; i < r.size() && i < 20; ++i) {
+			char b[200];
+			std::snprintf(b, sizeof b, "[task] #%zu %s (%s, level %d, squad #%llu, ws %d) %.0f", i + 1, r[i].name.c_str(), FactionName(r[i].faction), r[i].level,
+						  static_cast<unsigned long long>(r[i].squad), r[i].ws, r[i].score);
+			Log::Line(b);
+		}
 		return;
 	}
 	if (verb == "where") {   // marker FormIDs, for "console player.moveto <id>"
@@ -532,6 +653,6 @@ void Debug(const std::string& a_args)
 		}
 		return;
 	}
-	Log::Line("[task] debug: unknown '" + a_args + "' (list, offer <type>, accept, summon, kill, where)");
+	Log::Line("[task] debug: unknown '" + a_args + "' (list, offer <type>, accept, summon, kill, rank, where)");
 }
 }

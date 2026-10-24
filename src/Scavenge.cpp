@@ -3,6 +3,7 @@
 // left) walks over after a grace period, stops, and takes what its members would use: gold, gear, potions, food, ammunition. Bodies the
 // player kills are therefore worth looting promptly, and what the world's fighters wear ends up on whoever won.
 #include "ALife/Systems.h"
+#include "ALife/Companions.h"
 #include "ALife/Forms.h"
 #include "ALife/Log.h"
 #include "ALife/Settings.h"
@@ -127,7 +128,8 @@ bool TickGroup(Group& g, RE::Actor* lead, float dt)
 {
 	const auto& cfg = Sim::Cfg();
 	gClock += 0.f;   // the clock advances once per frame, in Tick
-	if (!cfg.lootCorpses || !Settings::Get().loot || !cfg.looters[int(g.faction)] || !lead) return false;
+	const bool looter = Companions::Has(g.id) ? Companions::Loots(g.id) : cfg.looters[int(g.faction)];   // companions: only when told
+	if (!cfg.lootCorpses || !Settings::Get().loot || !looter || !lead) return false;
 	auto job = gJobs.find(g.id);
 	const bool calm = g.trust == Trust::Neutral && !lead->IsInCombat() && Talk::ConversationSquad() != g.id && !Behavior::TalkPending(g);
 	if (job != gJobs.end()) {

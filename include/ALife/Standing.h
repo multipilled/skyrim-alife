@@ -130,6 +130,12 @@ public:
 	void OnTrade(Faction a_f, int a_gold, double a_now);
 	void OnToll(Group& a_g, double a_now);                            // the player paid for passage
 	void OnTask(Faction a_f, float a_delta);                          // a job done (+) or failed (-): the giver's faction only, no daily cap (docs/TASKS.md)
+	// the wounded and the surrendered (docs/WOUNDED.md): Wounds::Choose calls these with wounded.ltx [standing] amounts (magnitudes)
+	void OnWoundHelped(Group& a_g, float a_goodwill, float a_memory, double a_now);           // the player gave a down member a potion
+	void OnRob(Group& a_g, bool a_hostile, float a_goodwill, float a_memory, double a_now);   // looted a down / yielded member (free when the squad was hostile)
+	void OnFinish(Group& a_g, float a_goodwill, double a_now);                                // killed a down member (on top of OnKill)
+	void OnSpare(Group& a_g, float a_goodwill, float a_memory, double a_now);                 // let a surrendered squad go
+	void OnPrisonerKilled(Group& a_g, float a_goodwill, float a_notoriety, double a_now);     // killed a yielded member (on top of OnKill): notoriety even when hostile
 	void Tick(double a_nowHours, double a_dtHours);                   // fade, rumours, daily cap
 	void DecayMemory(Group& a_g, double a_dtHours) const;
 

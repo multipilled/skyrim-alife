@@ -10,11 +10,12 @@ namespace {
 		{ "hunter", "Hunters" },           { "mercenary", "Mercenaries" },  { "mage", "Mages" },
 		{ "necromancer", "Necromancers" }, { "vampire", "Vampires" },       { "dawnguard", "Dawnguard" },
 		{ "silverhand", "Silver Hand" },   { "vigilant", "Vigilants of Stendarr" }, { "caravan", "Khajiit Caravans" },
+		{ "skaal", "Skaal" },              { "redoran", "Redoran Guard" },  { "reaver", "Reavers" },
 		{ "wildlife", "Wild beasts" },     { "draugr", "Draugr" },          { "falmer", "Falmer" },
 		{ "troll", "Trolls" },             { "spriggan", "Spriggans" },     { "zombie", "Zombies" },
 		{ "hound", "Death hounds" },       { "werebeast", "Werebeasts" },   { "riekling", "Rieklings" },
 		{ "spirit", "Spirits" },          { "hagraven", "Hagravens" },     { "giant", "Giants" },
-		{ "dwemer", "Dwemer automatons" },
+		{ "dwemer", "Dwemer automatons" }, { "dragon", "Dragons" },
 	};
 	static_assert(sizeof(kFac) / sizeof(kFac[0]) == kFactionCount, "faction table out of sync with enum Faction");
 
@@ -50,6 +51,22 @@ const char* TierName(Tier a_t)
 bool IsVampireRace(RaceId a_r)
 {
 	return a_r == RaceId::NordVampire || a_r == RaceId::ImperialVampire || a_r == RaceId::BretonVampire || a_r == RaceId::DunmerVampire;
+}
+
+namespace {
+	constexpr const char* kRaceIds[] = { "nord", "imperial", "breton", "redguard", "altmer", "bosmer", "dunmer", "orsimer", "argonian", "khajiit",
+	                                     "nordvampire", "imperialvampire", "bretonvampire", "dunmervampire" };
+	static_assert(sizeof(kRaceIds) / sizeof(kRaceIds[0]) == int(RaceId::COUNT), "race id table out of sync with enum RaceId");
+}
+
+const char* RaceIdName(RaceId a_r) { return int(a_r) < int(RaceId::COUNT) ? kRaceIds[int(a_r)] : "?"; }
+
+RaceId RaceFromId(const std::string& a_id, bool* a_ok)
+{
+	for (int i = 0; i < int(RaceId::COUNT); ++i)
+		if (a_id == kRaceIds[i]) { if (a_ok) *a_ok = true; return RaceId(i); }
+	if (a_ok) *a_ok = false;
+	return RaceId::Nord;
 }
 
 const char* ActName(Act a_a)

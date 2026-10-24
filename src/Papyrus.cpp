@@ -18,16 +18,47 @@ namespace {
 			Settings::Save();
 		});
 	}
-	float GetPopulationScale(RE::StaticFunctionTag*) { return Settings::Get().populationScale; }
-	void SetPopulationScale(RE::StaticFunctionTag*, float a_v)
+	// difficulty sliders (docs/DIFFICULTY.md): channel index = DiffChannel order; population is the old density slider
+	bool ValidChannel(std::int32_t c) { return c >= 0 && c < kDiffChannels; }
+	float GetDiffScale(RE::StaticFunctionTag*, std::int32_t c)
 	{
-		float v = std::clamp(std::round(a_v * 10.f) / 10.f, 0.5f, 1.5f);
-		SKSE::GetTaskInterface()->AddTask([v] {
-			Settings::Get().populationScale = v;
+		return ValidChannel(c) ? ClampSlider(Sim::Cfg().diffCfg, DiffChannel(c), Settings::Get().diff.slider[c]) : 1.f;
+	}
+	void SetDiffScale(RE::StaticFunctionTag*, std::int32_t c, float a_v)
+	{
+		if (!ValidChannel(c)) return;
+		const float v = ClampSlider(Sim::Cfg().diffCfg, DiffChannel(c), a_v);
+		SKSE::GetTaskInterface()->AddTask([c, v] {
+			Settings::Get().diff.slider[c] = v;
 			Settings::Save();
 			Sim::ApplySettings();
 		});
 	}
+	float GetDiffMin(RE::StaticFunctionTag*, std::int32_t c) { return ValidChannel(c) ? Sim::Cfg().diffCfg.sliderMin[c] : 0.5f; }
+	float GetDiffMax(RE::StaticFunctionTag*, std::int32_t c) { return ValidChannel(c) ? Sim::Cfg().diffCfg.sliderMax[c] : 1.5f; }
+	RE::BSFixedString DiffEffectiveText(RE::StaticFunctionTag*, std::int32_t c)   // "1.35x" (strength: "+ size, levels, gear")
+	{
+		if (!ValidChannel(c)) return RE::BSFixedString("");
+		const auto& d = Sim::Cfg().diff;
+		char buf[96];
+		if (DiffChannel(c) == DiffChannel::Strength)
+			std::snprintf(buf, sizeof(buf), "%.2fx (size x%.2f, %+d levels, gear %+d)", d.Get(DiffChannel(c)), d.sizeMult, d.levelOffset, d.gearLevels);
+		else
+			std::snprintf(buf, sizeof(buf), "%.2fx", d.Get(DiffChannel(c)));
+		return RE::BSFixedString(buf);
+	}
+	bool GetFollowGame(RE::StaticFunctionTag*) { return Settings::Get().diff.followGame; }
+	void SetFollowGame(RE::StaticFunctionTag*, bool a_on)
+	{
+		SKSE::GetTaskInterface()->AddTask([a_on] {
+			Settings::Get().diff.followGame = a_on;
+			Settings::Save();
+			Sim::ApplySettings();
+		});
+	}
+	RE::BSFixedString GameDifficultyLabel(RE::StaticFunctionTag*) { return RE::BSFixedString(GameDifficultyName(Sim::GameDifficulty())); }
+	float GetPopulationScale(RE::StaticFunctionTag* t) { return GetDiffScale(t, std::int32_t(DiffChannel::Population)); }
+	void SetPopulationScale(RE::StaticFunctionTag* t, float a_v) { SetDiffScale(t, std::int32_t(DiffChannel::Population), a_v); }
 	int GetOfflineCombat(RE::StaticFunctionTag*) { return Settings::Get().ocsMode; }
 	void SetOfflineCombat(RE::StaticFunctionTag*, int a_mode)
 	{
@@ -57,6 +88,16 @@ namespace {
 			Log::Line(std::string("[mcm] dynamic relations ") + (a_on ? "on" : "off"));
 		});
 	}
+	bool GetDragons(RE::StaticFunctionTag*) { return Settings::Get().dragons; }
+	void SetDragons(RE::StaticFunctionTag*, bool a_on)
+	{
+		SKSE::GetTaskInterface()->AddTask([a_on] {
+			Settings::Get().dragons = a_on;
+			Settings::Save();
+			CivilWar::Reset();   // the dragon gate is read again on the next tick (off: offline dragons retire, ones on screen are sent off first)
+			Log::Line(std::string("[mcm] dragons ") + (a_on ? "on" : "off"));
+		});
+	}
 	std::int32_t GetTalkInitiative(RE::StaticFunctionTag*) { return Settings::Get().talkInitiative; }
 	void SetTalkInitiative(RE::StaticFunctionTag*, std::int32_t a_mode)
 	{
@@ -72,6 +113,30 @@ namespace {
 			Settings::Get().loot = a_on;
 			Settings::Save();
 		});
+	}
+	// patrol mods (docs/COMPAT.md): -1 auto, 0 off, 1-3 online groups
+	std::int32_t GetCompatBudget(RE::StaticFunctionTag*) { return Settings::Get().compatBudget; }
+	void SetCompatBudget(RE::StaticFunctionTag*, std::int32_t a_v)
+	{
+		const int v = std::clamp(a_v, -1, 3);
+		SKSE::GetTaskInterface()->AddTask([v] {
+			Settings::Get().compatBudget = v;
+			Settings::Save();
+			Sim::ApplySettings();
+			const auto& c = Sim::Cfg().compat;
+			Log::Line("[mcm] patrol mods budget " + std::to_string(v) + ": " + std::to_string(c.onlineGroups) + " groups / " +
+					  std::to_string(c.onlineActors) + " actors");
+		});
+	}
+	RE::BSFixedString CompatInfo(RE::StaticFunctionTag*)
+	{
+		const auto& cfg = Sim::Cfg();
+		if (!cfg.compat.Active()) return RE::BSFixedString("none detected");
+		std::string out;
+		for (auto& id : cfg.compat.detected)
+			for (auto& m : cfg.compatCfg.mods)
+				if (m.id == id) out += (out.empty() ? "" : ", ") + m.name;
+		return RE::BSFixedString(out.c_str());
 	}
 	void PrepareUninstall(RE::StaticFunctionTag*)
 	{
@@ -93,16 +158,29 @@ bool Register(RE::BSScript::IVirtualMachine* vm)
 	vm->RegisterFunction("ALifeSetEnabled"sv, kScript, SetEnabled);
 	vm->RegisterFunction("ALifeGetPopulationScale"sv, kScript, GetPopulationScale);
 	vm->RegisterFunction("ALifeSetPopulationScale"sv, kScript, SetPopulationScale);
+	vm->RegisterFunction("ALifeGetDiffScale"sv, kScript, GetDiffScale);
+	vm->RegisterFunction("ALifeSetDiffScale"sv, kScript, SetDiffScale);
+	vm->RegisterFunction("ALifeGetDiffMin"sv, kScript, GetDiffMin);
+	vm->RegisterFunction("ALifeGetDiffMax"sv, kScript, GetDiffMax);
+	vm->RegisterFunction("ALifeDiffEffectiveText"sv, kScript, DiffEffectiveText);
+	vm->RegisterFunction("ALifeGetFollowGame"sv, kScript, GetFollowGame);
+	vm->RegisterFunction("ALifeSetFollowGame"sv, kScript, SetFollowGame);
+	vm->RegisterFunction("ALifeGameDifficulty"sv, kScript, GameDifficultyLabel);
 	vm->RegisterFunction("ALifeGetOfflineCombat"sv, kScript, GetOfflineCombat);
 	vm->RegisterFunction("ALifeSetOfflineCombat"sv, kScript, SetOfflineCombat);
 	vm->RegisterFunction("ALifeGetNews"sv, kScript, GetNews);
 	vm->RegisterFunction("ALifeSetNews"sv, kScript, SetNews);
 	vm->RegisterFunction("ALifeGetDynamicRelations"sv, kScript, GetDynamicRelations);
 	vm->RegisterFunction("ALifeSetDynamicRelations"sv, kScript, SetDynamicRelations);
+	vm->RegisterFunction("ALifeGetDragons"sv, kScript, GetDragons);
+	vm->RegisterFunction("ALifeSetDragons"sv, kScript, SetDragons);
 	vm->RegisterFunction("ALifeGetTalkInitiative"sv, kScript, GetTalkInitiative);
 	vm->RegisterFunction("ALifeSetTalkInitiative"sv, kScript, SetTalkInitiative);
 	vm->RegisterFunction("ALifeGetLoot"sv, kScript, GetLoot);
 	vm->RegisterFunction("ALifeSetLoot"sv, kScript, SetLoot);
+	vm->RegisterFunction("ALifeGetCompatBudget"sv, kScript, GetCompatBudget);
+	vm->RegisterFunction("ALifeSetCompatBudget"sv, kScript, SetCompatBudget);
+	vm->RegisterFunction("ALifeCompatInfo"sv, kScript, CompatInfo);
 	vm->RegisterFunction("ALifePrepareUninstall"sv, kScript, PrepareUninstall);
 	vm->RegisterFunction("ALifeReady"sv, kScript, Ready);
 	vm->RegisterFunction("ALifeStatus"sv, kScript, Status);

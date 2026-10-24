@@ -55,8 +55,9 @@ stay or draw.
 
 ## Talking (quiet and optional)
 
-Nothing opens a menu or pauses the game. A squad that wants a word walks up, stops, says one short line as an ordinary subtitle,
-and waits. Talking to it is the player's choice, through Skyrim's own dialogue (`ALifeTalk.esp`):
+No message boxes or pop-ups. A squad that wants a word walks up and opens Skyrim's ordinary dialogue menu, the courier's way
+(it activates its leader as the player: `src/Behavior.cpp` `ForceGreet`; docs/CONVERSATIONS.md); otherwise talking to it is the
+player's choice, through Skyrim's own dialogue (`ALifeTalk.esp`):
 
 - **Toll (bandits).** They stop you and name a price. In the dialogue: pay it, say you can't (a pauper is waved through), refuse, or
   dare them. If you ignore them they warn you once, then attack; drawing steel at the table ends it at once.
@@ -76,5 +77,6 @@ Goodwill, notoriety, pending rumours and each squad's memory are saved in the SK
 
 - `config/standing.ltx`: baselines, dispositions, rules, deed values, decay.
 - `config/factions.ltx`: who is allied or at war with whom (spillover and faction-versus-faction behaviour).
-- `core/Standing.*`: engine-free model (tested headless: `tests/standing_test.cpp`).
-- `src/Standing.cpp`: reads the player's state from the game (allegiance factions, crime gold, race, gear keywords).
+- `include/ALife/Standing.h`, `src/core/Standing.cpp`: engine-free model (tested headless: `tests/standing_test.cpp`).
+- `src/Rep.cpp` (`Rep::Refresh`, `FillDisguise`): reads the player's state from the game (allegiance factions, crime gold, race,
+  gear keywords).

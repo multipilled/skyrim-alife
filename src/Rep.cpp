@@ -23,6 +23,7 @@ namespace {
 		RE::BGSKeyword *kwImperialLight{}, *kwImperialStudded{}, *kwImperialHeavy{}, *kwStormcloak{}, *kwDawnguard{}, *kwHunter{},
 			*kwVampireArmor{}, *kwElvenGilded{}, *kwVampire{};
 		RE::FormID beastRace[2]{ 0, 0 };
+		RE::TESQuest *skaalFreed{}, *ravenRock[3]{};   // Dragonborn: DLC2SV01 (the Skaal), DLC2RR01/02/03 (Raven Rock)
 	} gF;
 
 	struct HoldLaw { RE::FormID hold; RE::FormID crime; RE::TESFaction* faction{}; };
@@ -119,6 +120,13 @@ void Init()
 	gF.beastRace[0] = 0xCDD84;                                                // WerewolfBeastRace
 	if (auto* dh = RE::TESDataHandler::GetSingleton(); dh && dh->LookupModByName("Dawnguard.esm")) gF.beastRace[1] = dh->LookupFormID(0x283A, "Dawnguard.esm");
 	for (auto& l : gLaw) l.faction = get(l.crime);
+	// Solstheim is a hold of its own to the engine (DLC2SolstheimLocation carries LocTypeHold); Raven Rock's crime faction is its law
+	if (auto* sol = FromPlugin<RE::BGSLocation>(0x16E2A, "Dragonborn.esm"); sol && std::none_of(gLaw.begin(), gLaw.end(), [&](auto& l) { return l.hold == sol->GetFormID(); }))
+		gLaw.push_back({ sol->GetFormID(), 0x18279, FromPlugin<RE::TESFaction>(0x18279, "Dragonborn.esm") });   // DLC2CrimeRavenRockFaction
+	gF.skaalFreed = FromPlugin<RE::TESQuest>(0x19B4A, "Dragonborn.esm");      // DLC2SV01
+	gF.ravenRock[0] = FromPlugin<RE::TESQuest>(0x18B13, "Dragonborn.esm");    // DLC2RR01
+	gF.ravenRock[1] = FromPlugin<RE::TESQuest>(0x18B14, "Dragonborn.esm");    // DLC2RR02
+	gF.ravenRock[2] = FromPlugin<RE::TESQuest>(0x18B15, "Dragonborn.esm");    // DLC2RR03
 
 	gRaces = { { 0x13746, RaceId::Nord },     { 0x13744, RaceId::Imperial },  { 0x13741, RaceId::Breton },   { 0x13748, RaceId::Redguard },
 			   { 0x13743, RaceId::Altmer },   { 0x13749, RaceId::Bosmer },    { 0x13742, RaceId::Dunmer },   { 0x13747, RaceId::Orsimer },
@@ -129,7 +137,9 @@ void Init()
 	for (auto& l : gLaw) laws += l.faction ? 1 : 0;
 	for (auto* f : { gF.cwImperial, gF.cwSons, gF.companions, gF.thieves, gF.brotherhood, gF.college, gF.blades, gF.greybeards, gF.vampirePC, gF.playerWerewolf, gF.dawnguard, gF.volkihar })
 		fac += f ? 1 : 0;
-	Log::Line("[standing] forms: allegiance factions " + std::to_string(fac) + "/12, crime factions " + std::to_string(laws) + "/9, rules " +
+	const int dlc2 = (gF.skaalFreed ? 1 : 0) + (gF.ravenRock[0] ? 1 : 0) + (gF.ravenRock[1] ? 1 : 0) + (gF.ravenRock[2] ? 1 : 0);
+	Log::Line("[standing] forms: allegiance factions " + std::to_string(fac) + "/12, crime factions " + std::to_string(laws) + "/" + std::to_string(gLaw.size()) +
+			  ", Solstheim quests " + std::to_string(dlc2) + "/4, rules " +
 			  std::to_string(Sim::Cfg().standing.rules.size()));
 }
 
@@ -165,6 +175,9 @@ void Refresh(bool a_force)
 	if (in(gF.blades)) c.flags |= PlayerFlag::Blades;
 	if (in(gF.greybeards)) c.flags |= PlayerFlag::Greybeards;
 	if (in(gF.playerWerewolf)) c.flags |= PlayerFlag::Werewolf;
+	if (gF.skaalFreed && gF.skaalFreed->IsCompleted()) c.flags |= PlayerFlag::SkaalFriend;
+	for (auto* q : gF.ravenRock)
+		if (q && q->IsCompleted()) c.flags |= PlayerFlag::RavenRock;
 
 	if (auto* race = pc->GetRace()) {
 		const auto id = race->GetFormID();
@@ -206,8 +219,10 @@ Site SiteOf(const Group& g)
 	if (!n) n = Graph::Node(g.node);
 	if (!n) return s;
 	s.hold = n->hold;
-	const auto& hf = Sim::Cfg().holdFaction;
-	if (auto it = hf.find(n->hold); it != hf.end()) s.enforces = Sim::Cfg().standing.lawful[int(g.faction)] && it->second == g.faction;
+	// the hold's law is whoever holds it now in the Civil War (docs/CIVILWAR.md)
+	if (const std::uint8_t owner = CivilWar::HoldOwner(n->hold); owner != kNoFaction)
+		s.enforces = Sim::Cfg().standing.lawful[int(g.faction)] && owner == std::uint8_t(g.faction);
+	else if (n->ws < kWorldspaces) s.enforces = Sim::Cfg().standing.lawful[int(g.faction)] && Sim::Cfg().wsFaction[n->ws] == std::uint8_t(g.faction);   // Solstheim: Raven Rock's guard
 	return s;
 }
 

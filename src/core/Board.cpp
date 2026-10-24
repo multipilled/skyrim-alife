@@ -1,5 +1,7 @@
 #include "ALife/Board.h"
 
+#include "ALife/Wounds.h"
+
 #include <algorithm>
 #include <cfloat>
 #include <cstdarg>
@@ -33,8 +35,9 @@ void Board::Reset(double a_now)
 	smart.assign(m_world.Size(), SmartState{});
 	for (std::size_t i = 0; i < m_world.Size(); ++i) {
 		smart[i].spawned.assign(m_world.nodes[i].respawn.size(), 0);
-		smart[i].faction = m_world.nodes[i].defaultFaction;
 	}
+	ResetFactionState();   // places back to their start owners (a previous save may have moved them), then the smarts' holders
+	for (std::size_t i = 0; i < m_world.Size(); ++i) smart[i].faction = m_world.nodes[i].defaultFaction;
 	now = a_now;
 	nextId = 1;
 	stats = Stats{};
@@ -45,6 +48,8 @@ void Board::Reset(double a_now)
 	m_lastSos = m_lastBattleNews = m_lastDeathNews = -1e9;
 	rng = Rng(Mix64(std::uint64_t(a_now * 100) + 7));
 	worldSeed = Mix64(std::uint64_t(a_now * 100) + 99);
+	dragonLast = -1e9;   // docs/DRAGONS.md: a load restores both from record DRGN (written after SIM2)
+	dragonKills = 0;
 }
 
 Group* Board::Find(std::uint64_t a_id)
@@ -186,14 +191,38 @@ int Board::MonsterSquads() const
 float Board::SquadPower(const Group& a_g) const
 {
 	float s = 0;
-	for (auto& m : a_g.members) s += MemberEff(m);
+	for (auto& m : a_g.members) if (Stands(m)) s += MemberEff(m);
 	return s;
 }
 
+bool Board::Stands(const Member& a_m) const { return a_m.alive() && !(wounds && wounds->IsDown(a_m.id)); }
+
+int Board::StandingCount(const Group& a_g) const
+{
+	int n = 0;
+	for (auto& m : a_g.members) n += Stands(m) ? 1 : 0;
+	return n;
+}
+
 // ------------------------------------------------------------------ targeting (sim_board / simulation_objects / smart_terrain)
+std::int64_t Board::NearestValidPlace(const Group& a_g, int a_ws, float a_x, float a_y) const
+{
+	Group probe = a_g;
+	probe.ws = std::uint8_t(a_ws);
+	std::int64_t best = -1;
+	float bd = FLT_MAX;
+	for (auto& n : m_world.nodes) {
+		if (int(n.ws) != a_ws || n.id >= smart.size() || !TargetPrecondition(n, smart[n.id], probe, true)) continue;
+		const float dx = n.x - a_x, dy = n.y - a_y, d = dx * dx + dy * dy;
+		if (d < bd) { bd = d; best = n.id; }
+	}
+	return best;
+}
+
 bool Board::TargetPrecondition(const GraphNode& t, const SmartState& st, const Group& g, bool a_ignorePopulation) const
 {
 	if (t.disabled || !t.simAvail) return false;
+	if (t.ws != g.ws) return false;   // squads never change worldspace: no target, and no re-check on arrival, across worldspaces
 	if (!a_ignorePopulation && st.population >= t.maxPopulation) return false;
 	const Props& p = t.props;
 	const float coeff = p.byFaction[int(g.faction)];
@@ -288,6 +317,7 @@ Group* Board::CreateSquad(std::uint32_t a_smart, const std::string& a_section, b
 	const GraphNode* n = m_world.Node(a_smart);
 	if (!def || !n) return nullptr;
 	if (m_cfg.IsMonster(def->faction) && def->creatures.empty()) return nullptr;   // its creatures' plugin is not loaded
+	if (Blocked(def->faction, n->ws)) return nullptr;                              // stood down after the war / not founded yet
 	Group g;
 	g.id = nextId++;
 	g.faction = def->faction;
@@ -299,7 +329,15 @@ Group* Board::CreateSquad(std::uint32_t a_smart, const std::string& a_section, b
 	g.x = n->x; g.y = n->y; g.z = n->z;
 	g.idleHours = rng.uniform(m_cfg.idleMin, m_cfg.idleMax);
 	if (m_cfg.IsMonster(def->faction) && n->props.lair > 0.f) g.idleHours = rng.uniform(m_cfg.lairIdleMin, m_cfg.lairIdleMax);
-	const int size = rng.range(def->minMembers, def->maxMembers);
+	int size = rng.range(def->minMembers, def->maxMembers);
+	const bool flyer = m_cfg.monster[int(def->faction)] == MonsterType::Flyer;   // dragons: one each, scaled by the Dragons channel only (docs/DRAGONS.md)
+	const auto& dif = m_cfg.diff;   // squad strength (docs/DIFFICULTY.md): size and level; no roll at 1.0
+	if (dif.sizeMult != 1.f && !flyer) {
+		const float want = float(size) * dif.sizeMult;
+		int n = int(std::floor(want));
+		if (rng.frac() < want - float(n)) ++n;
+		size = dif.sizeMult > 1.f ? std::clamp(n, size, std::max(size, dif.sizeCap)) : std::clamp(n, 1, size);
+	}
 	const int base = std::max(1, m_host.PlayerLevel());
 	float totalW = 0;
 	for (auto w : def->roleWeights) totalW += w;
@@ -307,7 +345,8 @@ Group* Board::CreateSquad(std::uint32_t a_smart, const std::string& a_section, b
 	float creatureW = 0;
 	for (auto& c : def->creatures) creatureW += c.second;
 	for (int i = 0; i < size; ++i) {
-		const int level = std::max(1, base + rng.range(def->levelOffsetMin, def->levelOffsetMax));
+		const int bias = rng.range(def->levelOffsetMin, def->levelOffsetMax);
+		const int level = std::max(1, base + bias + (flyer ? 0 : dif.levelOffset));
 		if (monster) {   // a pack / band: creatures from monsters.ltx, the first one the leader kind when the squad names one
 			int ci = def->creatures.front().first;
 			if (i == 0 && def->leaderCreature >= 0) ci = def->leaderCreature;
@@ -320,7 +359,7 @@ Group* Board::CreateSquad(std::uint32_t a_smart, const std::string& a_section, b
 			m.faction = g.faction;
 			m.role = i == 0 ? Role::Leader : Role::Melee;
 			MakeCreature(m, m_cfg.creatures[std::size_t(ci)], level);
-			m.levelBias = level - base;
+			m.levelBias = level - base - (flyer ? 0 : dif.levelOffset);   // the squad's own offset; the difficulty's is added where the world levels (PaceLevels)
 			g.members.push_back(std::move(m));
 			continue;
 		}
@@ -334,8 +373,8 @@ Group* Board::CreateSquad(std::uint32_t a_smart, const std::string& a_section, b
 				roll -= def->roleWeights[r];
 			}
 		}
-		g.members.push_back(m_host.MakeMember(g.faction, g.tier, role, level, i == 0, rng, nextId++));
-		g.members.back().levelBias = level - base;
+		g.members.push_back(m_host.MakeMemberIn(int(g.ws), g.faction, g.tier, role, level, i == 0, rng, nextId++));
+		g.members.back().levelBias = level - base - dif.levelOffset;
 	}
 	g.startMembers = size;
 	g.startStrength = SquadPower(g);
@@ -352,7 +391,8 @@ int Board::MaxCount(std::uint32_t a_smart, std::size_t a_entry) const
 	const GraphNode& n = m_world.nodes[a_smart];
 	const auto& rp = n.respawn[a_entry];
 	const bool monsterEntry = rp.faction < kFactionCount && m_cfg.IsMonster(Faction(rp.faction));
-	const float q = rp.num * (monsterEntry ? m_cfg.monsterPopulationFactor : m_cfg.populationFactor);
+	const float q = rp.num * (monsterEntry ? m_cfg.monsterPopulationFactor * m_cfg.Diff(DiffChannel::Monsters)
+	                                       : m_cfg.populationFactor * m_cfg.Diff(DiffChannel::Population));
 	const int whole = int(std::floor(q));
 	const float frac = q - float(whole);
 	const std::uint64_t h = Mix64(worldSeed ^ (std::uint64_t(n.location) << 8) ^ std::uint64_t(a_entry + 1) * 0x9E3779B1ULL);
@@ -378,6 +418,7 @@ void Board::TryRespawn(std::uint32_t i)
 		if (f == kController) f = st.faction != kNoFaction ? st.faction : n.defaultFaction;
 		if (rp.faction == kController && f == kNoFaction) continue;
 		if (n.factionControlled && (f == kNoFaction || f != st.faction)) continue;   // controlled: only the controller respawns
+		if (f < kFactionCount && Blocked(Faction(f), n.ws)) continue;
 		if (MaxCount(i, k) > st.spawned[k]) cand.push_back(int(k));
 	}
 	if (cand.empty()) return;
@@ -408,6 +449,7 @@ void Board::StartFill(const std::array<bool, kFactionCount>* a_only)
 			std::uint8_t f = rp.faction == kController ? (st.faction != kNoFaction ? st.faction : n.defaultFaction) : rp.faction;
 			if (rp.faction == kController && f == kNoFaction) continue;
 			if (n.factionControlled && (f == kNoFaction || f != st.faction)) continue;
+			if (f < kFactionCount && Blocked(Faction(f), n.ws)) continue;
 			// start_fill of the slots this place owns are populated at game start
 			const int slots = MaxCount(i, k) - (a_monstersOnly ? st.spawned[k] : 0);
 			int count = int(std::floor(float(std::max(0, slots)) * m_cfg.startFill + rng.frac()));
@@ -457,10 +499,17 @@ bool Board::Move(Group& g, const GraphNode& t, double a_hours)
 			return false;
 		}
 		if (budget <= 0.0) return false;
-		const std::uint32_t next = m_world.NextHop(g.node, t.id);
-		if (next == g.node) { g.node = t.id; continue; }   // no path (should not happen): snap
-		const GraphNode* nn = m_world.Node(next);
-		if (!nn) { g.node = t.id; continue; }
+		const std::uint32_t next = m_world.NextHop(g.node, t.id);   // NextHop maps "no path" (0xFFFF) to g.node
+		const GraphNode* nn = next == g.node ? nullptr : m_world.Node(next);
+		if (!nn) {   // no path (another worldspace, a broken graph): drop the target and stay put, never jump to it
+			m_host.Log(Fmt("[move] no path from %s to %s: %s drops its target", PlaceName(g.node).c_str(), PlaceName(t.id).c_str(), SquadLabel(g).c_str()));
+			AssignToSmart(g, -1);
+			g.assignedTarget = g.currentTarget = -1;
+			g.action = Action::None;
+			g.locked = true;
+			g.lockedUntil = now + m_cfg.retargetHours;
+			return false;
+		}
 		const float dx = nn->x - g.x, dy = nn->y - g.y;
 		const float d = std::sqrt(dx * dx + dy * dy);
 		if (d <= budget) {
@@ -479,8 +528,31 @@ bool Board::Move(Group& g, const GraphNode& t, double a_hours)
 void Board::UpdateSquad(Group& g, double a_hours)
 {
 	if (g.livingCount() == 0) return;
+	if (IsDragon(g)) { UpdateDragon(g, a_hours); return; }   // dragons: straight flight between dragon places (docs/DRAGONS.md)
+	if (companions.count(g.id)) return;   // travelling with the player (axr_companions: scripted_target = "actor")
 	if (g.online && IsMonster(g)) return;   // on screen the creatures run their own AI (Anomaly: mutant jobs); the board moves them again once offline
-	if (g.action == Action::Stay && g.currentTarget >= 0 && pinned.count(g.id)) return;   // a job holds it at the place (assault)
+	if (wounds && !g.online && wounds->Survivors(g)) return;   // wounded survivors lie where they fell (docs/WOUNDED.md s2)
+	if (held.count(g.id)) return;   // a job keeps it where it stands (a rescue's captive)
+	if (auto f = forced.find(g.id); f != forced.end()) {   // a job sends it to a place and holds it there (defend waves, a captive walking home)
+		const GraphNode* to = m_world.Node(f->second);
+		if (!to || to->ws != g.ws) { forced.erase(f); return; }
+		if (g.assignedTarget != std::int64_t(to->id)) {
+			AssignToSmart(g, to->id);
+			g.assignedTarget = to->id;
+			g.currentTarget = -1;
+			g.action = Action::Reach;
+			g.activity = Act::None; g.actStep = 0; g.actHours = 0.f;
+			g.locked = false;
+		}
+		if (g.action == Action::Reach && (g.online ? m_host.OnlineReached(g, *to) : Move(g, *to, a_hours))) {
+			g.currentTarget = g.assignedTarget;
+			g.action = Action::Stay;
+			g.stayStart = now;
+			stats.arrivals[int(g.faction)]++;
+		}
+		return;
+	}
+	if (g.action == Action::Stay && g.currentTarget >= 0 && pinned.count(g.id)) return;   // a job holds it at the place (assault, rescue captors, defend giver, recover guard)
 	if (g.locked) {
 		if (now < g.lockedUntil) return;
 		g.locked = false;
@@ -534,6 +606,7 @@ void Board::UpdateSquad(Group& g, double a_hours)
 void Board::MemberDied(Group& vg, Member& victim, Group* kg, Member* killer)
 {
 	victim.health = 0;
+	if (wounds) wounds->Forget(victim.id);
 	stats.membersLost[int(vg.faction)]++;
 	if (kg) {
 		stats.membersKilled[int(kg->faction)]++;
@@ -553,13 +626,15 @@ void Board::MemberDied(Group& vg, Member& victim, Group* kg, Member* killer)
 			}
 	}
 	if (killer) ++killer->kills;
+	if (IsDragon(vg)) dragonLast = now;   // the respawn timer restarts when a dragon dies (docs/DRAGONS.md)
 	// death report (Anomaly dynamic_news death / named death): commanders and veterans, one per faction per cooldown
 	const bool notable = victim.veteran || (!vg.members.empty() && &vg.members.front() == &victim);
-	if (m_cfg.news && m_cfg.newsDeaths && !IsMonster(vg) && notable && now >= m_deathNewsUntil[int(vg.faction)] && now - m_lastDeathNews >= m_cfg.deathGapHours) {
+	if (m_cfg.news && m_cfg.newsDeaths && (!IsMonster(vg) || IsDragon(vg)) && notable && now >= m_deathNewsUntil[int(vg.faction)] && now - m_lastDeathNews >= m_cfg.deathGapHours) {
 		m_deathNewsUntil[int(vg.faction)] = now + m_cfg.deathCooldownHours;
 		m_lastDeathNews = now;
 		const GraphNode* at = m_world.Node(vg.node);
-		const std::string who = victim.name.empty() ? std::string("a ") + FactionName(vg.faction) + " commander" : victim.name + " of the " + FactionName(vg.faction);
+		const std::string who = IsDragon(vg) ? std::string("a ") + (victim.name.empty() ? "dragon" : victim.name)
+		                      : victim.name.empty() ? std::string("a ") + FactionName(vg.faction) + " commander" : victim.name + " of the " + FactionName(vg.faction);
 		const std::string by = kg ? std::string(", killed by ") + (IsMonster(*kg) ? "" : "the ") + FactionName(kg->faction) : std::string();
 		m_host.News(Fmt("Death report: %s fell near %s%s", who.c_str(), PlaceName(vg.node).c_str(), by.c_str()), at ? at->x : vg.x, at ? at->y : vg.y);
 		stats.deathNews++;
@@ -605,15 +680,15 @@ void Board::Round(Group& attacker, Group& victim, std::vector<Member>& deadVicti
 {
 	const float pA = SquadPower(attacker);
 	if (pA <= 0.f) return;
-	float dmg = pA * (m_cfg.hitBase + rng.frac() * m_cfg.hitFactor);
+	float dmg = pA * (m_cfg.hitBase + rng.frac() * m_cfg.hitFactor) * m_cfg.Diff(DiffChannel::Lethality);
 	const float dealt = dmg;
 	// the attacker's random MVP earns rank
 	std::vector<Member*> liveA;
-	for (auto& m : attacker.members) if (m.alive()) liveA.push_back(&m);
+	for (auto& m : attacker.members) if (Stands(m)) liveA.push_back(&m);
 	Member* mvp = liveA.empty() ? nullptr : liveA[std::size_t(rng.index(int(liveA.size())))];
 	for (int guard = 0; guard < 64 && dmg > 0.01f; ++guard) {
 		std::vector<Member*> liveV;
-		for (auto& m : victim.members) if (m.alive()) liveV.push_back(&m);
+		for (auto& m : victim.members) if (Stands(m)) liveV.push_back(&m);   // the down are out of the fight
 		if (liveV.empty()) break;
 		Member* v = liveV[std::size_t(rng.index(int(liveV.size())))];
 		const float power = std::max(1.f, PowerOf(*v));
@@ -622,6 +697,7 @@ void Board::Round(Group& attacker, Group& victim, std::vector<Member>& deadVicti
 		v->health -= v->healthMax * used / power;
 		dmg -= used;
 		if (v->health <= 0.5f) {
+			if (wounds && wounds->OfflineLethal(*this, victim, *v)) continue;   // left down instead (docs/WOUNDED.md s1)
 			MemberDied(victim, *v, &attacker, mvp);
 			deadVictims.push_back(*v);
 		}
@@ -630,7 +706,7 @@ void Board::Round(Group& attacker, Group& victim, std::vector<Member>& deadVicti
 		const float xp = dealt / std::max(1.f, m_cfg.rankFraction);
 		mvp->rankXp += xp;
 		m_host.GrowMember(*mvp, xp, rng);
-		if (!attacker.members.empty() && attacker.members.front().alive()) {   // commander bonus
+		if (!attacker.members.empty() && Stands(attacker.members.front())) {   // commander bonus
 			const float bonus = float(rng.range(1, std::max(1, int(m_cfg.commanderGain)))) / std::max(1.f, m_cfg.rankFraction);
 			attacker.members.front().rankXp += bonus;
 			m_host.GrowMember(attacker.members.front(), bonus, rng);
@@ -657,6 +733,7 @@ void Board::Battle(Group& a, Group& b, double)
 	}
 	a.opponent = b.id;
 	b.opponent = a.id;
+	if (wounds) { wounds->foughtThisStep.insert(a.id); wounds->foughtThisStep.insert(b.id); }
 	if (a.ocsStartPower <= 0.f) a.ocsStartPower = SquadPower(a);
 	if (b.ocsStartPower <= 0.f) b.ocsStartPower = SquadPower(b);
 	const std::string before = Fmt("%s x%d (%.0f) vs %s x%d (%.0f)", FactionId(a.faction), a.livingCount(), SquadPower(a),
@@ -665,7 +742,7 @@ void Board::Battle(Group& a, Group& b, double)
 	bool aFled = false, bFled = false;
 	for (int r = 0; r < std::max(1, m_cfg.roundsPerStep); ++r) {
 		if (r % 2 == 0) Round(a, b, deadB); else Round(b, a, deadA);
-		if (a.livingCount() == 0 || b.livingCount() == 0) break;
+		if (StandingCount(a) == 0 || StandingCount(b) == 0) break;
 		const float pa = SquadPower(a), pb = SquadPower(b);
 		if (pa < m_cfg.fleeRatio * a.ocsStartPower && pb > 1.4f * pa && rng.chance(0.6f)) { aFled = true; break; }
 		if (pb < m_cfg.fleeRatio * b.ocsStartPower && pa > 1.4f * pb && rng.chance(0.6f)) { bFled = true; break; }
@@ -680,6 +757,14 @@ void Board::Battle(Group& a, Group& b, double)
 		g.members.erase(std::remove_if(g.members.begin(), g.members.end(), [](const Member& m) { return !m.alive(); }), g.members.end());
 	};
 	auto finish = [&](Group& loser, Group& winner, bool fled) {
+		// the winner deals with the loser's down (finish or leave them); survivors with nobody standing lie where they fell
+		if (wounds && (fled || StandingCount(loser) == 0) && wounds->AfterBattle(*this, loser, winner, fled) > 0) prune(loser);
+		if (loser.livingCount() > 0 && StandingCount(loser) == 0) {
+			m_host.Log(Fmt("[ocs] %s lies wounded after losing to %s at %s (%s)", SquadLabel(loser).c_str(), SquadLabel(winner).c_str(), PlaceName(a.node).c_str(), before.c_str()));
+			loser.ocsStartPower = 0;
+			winner.ocsStartPower = 0;
+			return;
+		}
 		if (loser.livingCount() == 0) {
 			stats.wiped[int(loser.faction)]++;
 			if (IsMonster(loser))
@@ -719,8 +804,8 @@ void Board::Battle(Group& a, Group& b, double)
 	};
 	prune(a);
 	prune(b);
-	if (a.livingCount() == 0) finish(a, b, false);
-	else if (b.livingCount() == 0) finish(b, a, false);
+	if (StandingCount(a) == 0) finish(a, b, false);
+	else if (StandingCount(b) == 0) finish(b, a, false);
 	else if (aFled) finish(a, b, true);
 	else if (bFled) finish(b, a, true);
 }
@@ -728,11 +813,14 @@ void Board::Battle(Group& a, Group& b, double)
 void Board::RunOcs()
 {
 	if (m_cfg.ocsMode == OcsMode::Off) return;
-	if (int(squads.size()) <= int(std::ceil(m_cfg.populationFactor * float(m_cfg.minSquadsForOcs)))) return;   // Anomaly: thin crowded worlds only
+	// Anomaly: thin crowded worlds only, with the mean of the stalker and mutant population factors (sim_offline_combat.script:335)
+	const float pop = 0.5f * (m_cfg.populationFactor * m_cfg.Diff(DiffChannel::Population) + m_cfg.monsterPopulationFactor * m_cfg.Diff(DiffChannel::Monsters));
+	if (int(squads.size()) <= int(std::ceil(pop * float(m_cfg.minSquadsForOcs)))) return;
 	std::vector<std::size_t> idx;
 	for (std::size_t i = 0; i < squads.size(); ++i) {
 		const Group& g = squads[i];
-		if (g.online || g.livingCount() == 0 || now < g.retreatUntilHours) continue;
+		if (g.online || g.livingCount() == 0 || now < g.retreatUntilHours || companions.count(g.id) || held.count(g.id) || IsDragon(g)) continue;   // the player's companions and held captives do not fight offline; dragons hunt in DragonHunt
+		if (wounds && StandingCount(g) == 0) continue;   // wounded survivors are neither attackers nor targets
 		idx.push_back(i);
 	}
 	// shuffle so no squad is always the attacker
@@ -787,6 +875,9 @@ void Board::UpdateControl()
 		if (st.faction == kNoFaction) taker = std::uint8_t(v.front());
 		else for (auto f : v) if (m_cfg.IsEnemy(f, Faction(st.faction))) { taker = std::uint8_t(f); break; }
 		if (taker == kNoFaction) continue;
+		// a hold's places belong to the side that holds the hold in the real war (docs/CIVILWAR.md): the other side raids them
+		// but cannot take them, and the side that lost the war takes nothing
+		if (m_cfg.IsCwSide(taker) && n.holdAligned && taker != EffectiveOwner(n.hold)) continue;
 		const std::uint8_t prev = st.faction;
 		st.faction = taker;
 		stats.controlChanges++;
@@ -806,7 +897,7 @@ void Board::TickNeeds(double a_hours)
 	const bool night = !InTimeInterval(HourOfDay(now), 6.f, 20.f);
 	const bool survival = m_host.SurvivalOn();
 	for (auto& g : squads) {
-		if (g.online || IsMonster(g)) continue;   // the engine owns members on screen; beasts and the dead do not starve
+		if (g.online || IsMonster(g) || companions.count(g.id) || held.count(g.id)) continue;   // the engine owns members on screen; beasts and the dead do not starve
 		const float rest = g.action == Action::Stay ? 0.5f : 1.f;
 		for (auto& m : g.members) {
 			if (!m.alive()) continue;
@@ -828,10 +919,10 @@ void Board::PaceLevels()
 	const int pl = std::max(1, m_host.PlayerLevel());
 	m_lastPlayerLevel = pl;
 	for (auto& g : squads) {
-		if (g.online) continue;   // the engine owns members on screen; they catch up once offline again
+		if (g.online || companions.count(g.id)) continue;   // the engine owns members on screen; they catch up once offline again
 		for (auto& m : g.members) {
 			if (!m.alive()) continue;
-			const int target = std::max(1, pl + m.levelBias);
+			const int target = std::max(1, pl + m.levelBias + (IsDragon(g) ? 0 : m_cfg.diff.levelOffset));   // squad strength: harder games level higher (dragons: the Dragons channel)
 			if (m.level >= target) continue;
 			const int to = std::min(target, m.level + std::max(1, m_cfg.levelsPerPace));
 			if (IsMonster(g)) {   // creatures grow by their monsters.ltx curve, wounds kept as a share
@@ -852,7 +943,7 @@ void Board::Heal(double a_hours)
 	for (auto& g : squads) {
 		if (g.online) continue;   // the engine heals members that are in the world
 		const float rate = (g.action == Action::Stay ? 2.f : 1.f) * m_cfg.healPerHour / 100.f * float(a_hours);
-		for (auto& m : g.members) if (m.alive()) m.health = std::min(m.healthMax, m.health + m.healthMax * rate);
+		for (auto& m : g.members) if (Stands(m)) m.health = std::min(m.healthMax, m.health + m.healthMax * rate);   // the down get up through Wounds
 	}
 }
 
@@ -868,6 +959,8 @@ void Board::Step(double a_hours)
 {
 	now += a_hours;
 	stats.steps++;
+	ApplyFactionState();   // Civil War progress and gates: before respawn, so freed slots refill with the right side
+	TickDragons();         // docs/DRAGONS.md: below the cap and the timer run, a new dragon (nothing at all while the gate is shut)
 	RecomputePopulation();
 	for (std::uint32_t i = 0; i < m_world.Size(); ++i) TryRespawn(i);
 	// squads in shuffled order (positions: indices stay valid because nothing is created or erased inside the loop)
@@ -876,9 +969,12 @@ void Board::Step(double a_hours)
 	for (std::size_t i = order.size(); i > 1; --i) std::swap(order[i - 1], order[std::size_t(rng.index(int(i)))]);
 	for (auto i : order) UpdateSquad(squads[i], a_hours);
 	RunOcs();
+	DragonHunt();
+	if (wounds) wounds->Tick(*this, a_hours);   // help after the fights, wounded survivors get up
 	TickNeeds(a_hours);
 	for (auto& g : squads) {   // idle squads work at their place (trade, raid, hunt ...)
-		if (g.online || g.livingCount() == 0 || g.action != Action::Stay || g.currentTarget < 0 || IsMonster(g)) continue;
+		if (g.online || g.livingCount() == 0 || g.action != Action::Stay || g.currentTarget < 0 || IsMonster(g) || companions.count(g.id) || held.count(g.id) || forced.count(g.id)) continue;
+		if (wounds && StandingCount(g) == 0) continue;
 		if (GraphNode* here = m_world.Node(std::uint32_t(g.currentTarget))) {
 			const bool fresh = g.arrivedFresh;
 			g.arrivedFresh = false;
@@ -935,6 +1031,179 @@ void Board::Advance(double a_to)
 {
 	const double step = std::max(0.01, double(m_cfg.stepHours));
 	while (now + step <= a_to + 1e-9) Step(step);
+}
+
+}  // namespace ALife
+
+// ------------------------------------------------------------------ dragons (docs/DRAGONS.md, Anomaly heli_alife.script)
+namespace ALife {
+
+int Board::DragonCount() const
+{
+	int n = 0;
+	for (auto& g : squads) n += IsDragon(g) && g.livingCount() > 0 ? 1 : 0;
+	return n;
+}
+
+int Board::DragonCap() const { return int(std::lround(DragonEff().maxDragons)); }
+
+// The next place: a dragon place (lair, word wall, high country) nobody else flies to or holds, weighted by its kind, the people
+// staying there (prey) and the straight-line distance; best of 5 / random of 5 like GetSquadTarget. Never the place it is at.
+const GraphNode* Board::DragonTarget(const Group& g)
+{
+	const DragonNumbers d = DragonEff();
+	std::vector<int> prey(m_world.Size(), 0);
+	std::vector<char> taken(m_world.Size(), 0);
+	for (auto& s : squads) {
+		if (s.livingCount() == 0) continue;
+		if (IsDragon(s)) {
+			if (s.id == g.id) continue;
+			if (s.assignedTarget >= 0 && std::size_t(s.assignedTarget) < taken.size()) taken[std::size_t(s.assignedTarget)] = 1;
+			if (s.currentTarget >= 0 && std::size_t(s.currentTarget) < taken.size()) taken[std::size_t(s.currentTarget)] = 1;
+			continue;
+		}
+		if (IsHumanFaction(s.faction) && s.action == Action::Stay && s.currentTarget >= 0 && std::size_t(s.currentTarget) < prey.size() &&
+		    !companions.count(s.id) && !held.count(s.id))
+			++prey[std::size_t(s.currentTarget)];
+	}
+	struct Cand { float prior; const GraphNode* n; };
+	std::vector<Cand> top;
+	for (auto& n : m_world.nodes) {
+		if (n.dragon <= 0.f || n.ws != g.ws || n.disabled || n.city || n.settlement || n.inn || n.playerHome || taken[n.id]) continue;
+		if (n.id == g.node && g.currentTarget == std::int64_t(n.id)) continue;   // never the place it is leaving
+		const float dx = n.x - g.x, dy = n.y - g.y;
+		const float dist = std::max(std::sqrt(dx * dx + dy * dy), m_cfg.distanceBias);
+		const float prior = n.dragon * (1.f + d.preyBonus * float(prey[n.id])) * (1.f + m_cfg.distanceBias / dist);
+		if (int(top.size()) < m_cfg.topTargets) top.push_back({ prior, &n });
+		else {
+			auto lo = std::min_element(top.begin(), top.end(), [](const Cand& a, const Cand& b) { return a.prior < b.prior; });
+			if (prior > lo->prior) *lo = { prior, &n };
+		}
+	}
+	if (top.empty()) return nullptr;
+	if (rng.chance(m_cfg.bestChance))
+		return std::max_element(top.begin(), top.end(), [](const Cand& a, const Cand& b) { return a.prior < b.prior; })->n;
+	return top[std::size_t(rng.index(int(top.size())))].n;
+}
+
+// Straight flight at fly_speed (not the road graph, any hour), a stay of stay_min..stay_max hours, then the next place. A dragon
+// never takes a place's population or monster slot (smartAssigned stays -1). On screen the vanilla AI flies it.
+void Board::UpdateDragon(Group& g, double a_hours)
+{
+	if (g.online) return;
+	const DragonNumbers d = DragonEff();
+	if (g.action == Action::Reach && g.assignedTarget >= 0) {
+		const GraphNode* t = m_world.Node(std::uint32_t(g.assignedTarget));
+		if (t && t->ws == g.ws) {
+			const float dx = t->x - g.x, dy = t->y - g.y, dist = std::sqrt(dx * dx + dy * dy);
+			const float step = d.flySpeed * float(a_hours);
+			if (dist > step) {
+				g.x += dx / dist * step;
+				g.y += dy / dist * step;
+				return;
+			}
+			g.x = t->x; g.y = t->y; g.z = t->z;
+			g.prevNode = g.node;
+			g.node = t->id;
+			g.currentTarget = g.assignedTarget;
+			g.action = Action::Stay;
+			g.stayStart = now;
+			g.idleHours = rng.uniform(float(d.stayMin), float(d.stayMax));
+			stats.arrivals[int(g.faction)]++;
+			return;
+		}
+		g.assignedTarget = -1;
+		g.action = Action::None;
+	}
+	if (g.action == Action::Stay && g.currentTarget >= 0 && now - g.stayStart < g.idleHours) return;
+	const GraphNode* t = DragonTarget(g);
+	if (!t) {   // nowhere free to go: stay a while longer
+		g.stayStart = now;
+		g.idleHours = d.stayMin;
+		return;
+	}
+	g.assignedTarget = t->id;
+	g.currentTarget = -1;
+	g.action = Action::Reach;
+	stats.retargets++;
+	stats.dragonFlights++;
+}
+
+// Below the cap and once respawn_days have passed since the last dragon was made or killed: a new one at a free dragon lair (else
+// any free dragon place), its tier from the player's level x level_mult. Shut gate (DragonsReturned, MCM): nothing, not even a roll.
+void Board::TickDragons()
+{
+	const auto& tiers = m_cfg.dragons.tiers;
+	if (tiers.empty() || Blocked(Faction::Dragon, 0)) return;
+	const DragonNumbers d = DragonEff();
+	if (DragonCount() >= DragonCap() || now - dragonLast < d.respawnDays * 24.0) return;
+	const int level = std::max(1, int(std::lround(float(std::max(1, m_host.PlayerLevel())) * d.levelMult)));
+	std::string section = tiers.front().first;
+	for (auto& t : tiers) if (t.second <= level) section = t.first;
+	std::vector<char> taken(m_world.Size(), 0);
+	for (auto& s : squads)
+		if (IsDragon(s) && s.livingCount() > 0)
+			for (auto at : { s.assignedTarget, s.currentTarget })
+				if (at >= 0 && std::size_t(at) < taken.size()) taken[std::size_t(at)] = 1;
+	std::vector<std::uint32_t> lairs, any;
+	for (auto& n : m_world.nodes) {
+		if (n.dragon <= 0.f || n.ws != 0 || n.disabled || n.playerHome || taken[n.id]) continue;
+		(n.kind == Kind::DragonLair ? lairs : any).push_back(n.id);
+	}
+	auto& pool = lairs.empty() ? any : lairs;
+	if (pool.empty()) return;
+	const std::uint32_t at = pool[std::size_t(rng.index(int(pool.size())))];
+	Group* g = CreateSquad(at, section, false);
+	if (!g) return;
+	g->respawnSmart = -1;
+	g->action = Action::Stay;
+	g->assignedTarget = g->currentTarget = at;
+	g->stayStart = now;
+	g->idleHours = rng.uniform(float(d.stayMin), float(d.stayMax));
+	dragonLast = now;
+	stats.dragonsMade++;
+	m_host.Log(Fmt("[dragon] %s #%llu (%s, level %d) appears at %s", g->section.c_str(), (unsigned long long)g->id,
+	               g->members.empty() ? "?" : g->members.front().name.c_str(), g->members.empty() ? 0 : g->members.front().level, PlaceName(at).c_str()));
+	if (m_cfg.news) {
+		const GraphNode* n = m_world.Node(at);
+		m_host.News(Fmt("A dragon has been seen over %s", PlaceName(at).c_str()), n ? n->x : 0.f, n ? n->y : 0.f);
+	}
+}
+
+// A dragon staying at a place hunts the people there (offline only; on screen the engine fights): novice and advanced human
+// squads flee at once with no losses (Anomaly stalker panic, PARITY G14), and the dragon fights one veteran squad per step through
+// the combat simulator. Other monsters and other dragons are left alone.
+void Board::DragonHunt()
+{
+	const DragonNumbers d = DragonEff();
+	for (std::size_t i = 0; i < squads.size(); ++i) {
+		if (!IsDragon(squads[i]) || squads[i].online || squads[i].livingCount() == 0 || squads[i].action != Action::Stay || squads[i].currentTarget < 0) continue;
+		const std::int64_t here = squads[i].currentTarget;
+		std::size_t fight = SIZE_MAX;
+		for (std::size_t j = 0; j < squads.size(); ++j) {
+			Group& s = squads[j];
+			if (j == i || !IsHumanFaction(s.faction) || s.online || s.livingCount() == 0 || s.action != Action::Stay || s.currentTarget != here) continue;
+			if (companions.count(s.id) || held.count(s.id) || now < s.retreatUntilHours) continue;
+			if (wounds && StandingCount(s) == 0) continue;   // only wounded left (M5d): they neither flee nor fight
+			if (s.tier != Tier::Veteran) {
+				stats.dragonFlees++;
+				stats.retreats++;
+				s.retreatUntilHours = now + d.fleeHours;
+				s.avoidNode = here;
+				AssignToSmart(s, -1);
+				s.assignedTarget = s.currentTarget = -1;
+				s.action = Action::None;
+				s.locked = false;
+				m_host.Log(Fmt("[dragon] %s flees from the dragon at %s", SquadLabel(s).c_str(), PlaceName(std::uint32_t(here)).c_str()));
+				continue;
+			}
+			if (fight == SIZE_MAX) fight = j;
+		}
+		if (fight != SIZE_MAX) {
+			stats.dragonFights++;
+			Battle(squads[i], squads[fight], 0.0);
+		}
+	}
 }
 
 }  // namespace ALife

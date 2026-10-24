@@ -1,4 +1,6 @@
 #pragma once
+#include <initializer_list>
+
 #include "ALife/Board.h"
 #include "ALife/Config.h"
 #include "ALife/Model.h"
@@ -46,8 +48,10 @@ bool Assign(Member& a_m, bool a_allowFallbackRace);
 bool CanAssignAll(const std::vector<Member>& a_members, bool a_allowFallbackRace);   // dry run, no state change
 void Release(Member& a_m);
 void ReleaseSticky(Member& a_m);                      // death: free reservation
+bool Tie(Member& a_m);                                // keep the member's current pool actor for life (companions), within the sticky cap
 void RebuildReservations(std::vector<Group>& a_groups);   // after co-save load
 RE::Actor* ActorOf(const Member& a_m);
+bool InWorld(RE::Actor* a_a);                         // 3D loaded in an attached cell, enabled: required before StartCombat / StopCombat
 bool IsPoolActor(const RE::Actor* a_a);
 void SweepAllToHolding();                             // load / uninstall: no stray actors
 void FullWipe(RE::Actor* a_a);
@@ -161,7 +165,9 @@ void OnPostLoad();
 void MainTick(float a_realDt);    // main thread, ~10 Hz, never input-driven
 void SetEnabled(bool a_on);
 void RequestPrepareUninstall();
-void ApplySettings();             // MCM options -> config (population factor, offline combat mode, news)
+void ApplySettings();             // MCM options -> config (population factor, offline combat mode, news, difficulty)
+int GameDifficulty(int* a_pref = nullptr);   // Skyrim's difficulty 0 Novice .. 5 Legendary (a_pref: the SkyrimPrefs.ini value, -1 when unread)
+void RefreshDifficulty(bool a_force);        // re-run ApplyDifficulty when the game difficulty or a slider changed (docs/DIFFICULTY.md)
 
 // player relations (Anomaly "actor" row + dynamic goodwill)
 float PlayerRel(Faction a_f);
@@ -190,6 +196,7 @@ void DebugGotoSquad();
 void DebugScenario();             // place the next faction's test squad ahead of the player
 void DebugKill();                 // the player strikes and kills one member of that squad
 void DebugTalk();                 // talk to that squad: the same as pressing Activate on its leader
+void DebugTalkTo(std::uint64_t a_gid);   // ... to any squad on screen
 std::uint64_t DebugScenarioGroup();   // that squad's id, 0 when none
 std::string StatusLine();         // one-line summary for the MCM
 }
@@ -210,7 +217,26 @@ bool LeaderNear(const Group& a_g, const GraphNode& a_n);   // leader within the 
 void Approach(Group& a_g, float a_stopDist);              // the leader walks up to the player and stops a_stopDist short
 bool ApproachRef(Group& a_g, RE::TESObjectREFR* a_target, float a_stopDist);   // ... to any reference; true once there (and holding)
 void Hold(Group& a_g);                                    // stand where they are (sandbox)
-void Resume(Group& a_g);                                  // back to what the board planned
+void Resume(Group& a_g);                                  // back to what the board planned (companions: to the player's orders)
+// companions (docs/COMPANIONS.md): put a squad's pool actors at an exact spot in any cell (an interior too), holding a slot; no board driving
+bool PlaceAt(Group& a_g, RE::TESObjectCELL* a_cell, RE::TESWorldSpace* a_ws, const RE::NiPoint3& a_pos);
+// The online squad furthest from the player leaves the screen (fight finished off screen). Never a companion, never a squad in
+// a_keep (the summon verb keeps the bounty's giver and target); a_why is the offline reason logged.
+void MakeRoom(std::initializer_list<std::uint64_t> a_keep = {}, const char* a_why = "roomForCompanions");
+bool AtBudget(int a_reserve = 0);                         // groups on screen (+ a_reserve) >= the patrol-mod budget (compat.onlineGroups; docs/COMPAT.md)
+void SetActorMode(RE::Actor* a_a, int a_rank);            // package: 1 travel to the linked ref, 2 sandbox around it, 3 follow it, 4 flee, 5 camp hold, 6 camp sit
+void MoveRef(RE::TESObjectREFR* a_ref, RE::TESObjectCELL* a_cell, RE::TESWorldSpace* a_ws, const RE::NiPoint3& a_pos);
+bool SnapPoint(const RE::NiPoint3& a_p, float a_radius, RE::NiPoint3& a_out, RE::TESObjectCELL*& a_cell);   // nearest navmesh vertex (exteriors)
+}
+
+// ---------------- CampLife: jobs and campfire scenes of squads staying at a place, on screen only (docs/CAMPLIFE.md, M5h)
+namespace CampLife {
+void Init();                                                   // camp.ltx + camp_spots.ltx, after Forms::ResolveAll
+void Reset();                                                  // load / new game: spots, jobs, markers forgotten
+void Tick(float a_dt);                                         // per Online tick: frees markers of squads that left, campfire scenes
+void TickGroup(Group& a_g, RE::Actor* a_lead, bool a_changed); // a free, staying online squad (Online::Tick, before StayDirector)
+bool OwnsLeader(const Group& a_g);                             // the leader has a camp job other than patrol (StayDirector leaves it alone)
+std::string Debug();                                           // bridge verb "camp"
 }
 
 // ---------------- Creatures: monster squads on screen (docs/MUTANTS.md)
@@ -236,6 +262,15 @@ void TickOnline(Group& a_g, float a_dt);
 void OnPlayerAttacked(Group& a_g);
 void Reset();                                          // forget every meeting (new game / load)
 std::uint64_t HostilityHash(std::uint64_t a_gid, std::uint32_t a_day);
+}
+
+// ---------------- CivilWar: the vanilla Civil War and faction gate quests -> the board (docs/CIVILWAR.md)
+namespace CivilWar {
+void Init();                                  // kDataLoaded, after the config: resolve CWOwner, the holds, CWObj and the gate quests
+void Reset();                                 // new game / load: read again on the next tick
+void Tick(Board& a_b, float a_realDt);        // Sim::MainTick under the sim lock, before population and stepping (every 3 s)
+std::uint8_t HoldOwner(FormID a_hold);        // live side of a war hold (the config's start owner before the board exists)
+void Debug(const std::string& a_arg);         // bridge "cw": dump; "cw flip <hold hex> <1|2>"
 }
 
 // ---------------- Co-save

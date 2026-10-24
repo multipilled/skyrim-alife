@@ -1,0 +1,139 @@
+; Camp life at smart terrains (docs/CAMPLIFE.md, M5h). Anomaly 1.5.3: gulag_general.script (jobs, priorities, conditions),
+; smart_terrain.script select_npc_job (one member per job, higher priority wins), sr_camp.script (campfire scene).
+; Spot base forms (campfires, beds, seats ...) are generated into camp_spots.ltx by tools/gen_camp_spots.py.
+; Only squads on screen take jobs; offline squads keep the stay / needs model (rest_rate below is the one offline effect).
+
+; job priority (gulag_general job_info_by_job_type_id); walker is the fallback every member without a slot gets
+[jobs]
+camper    = 45    ; lie in wait by the approach (outlaw factions only: standing.ltx opportunism > 0)
+sniper    = 30    ; archer on high ground (archers only)
+guard     = 25
+patrol    = 25    ; the leader's walk around the place (Online StayDirector)
+collector = 25    ; gathers plants / small game nearby (hunting factions and mages)
+walker    = 15
+campfire  = 10
+sleep     = 10    ; inside [time] sleep_from..sleep_to only, at night_sleep_prior
+
+; slots per max_population of the place (rounded); guard, sniper and camper counts x Diff(Strength) (docs/DIFFICULTY.md).
+; A kind without its own section uses [slots_default]; a kind's section lists every job it has.
+[slots_default]
+guard    = 0.5
+patrol   = 0.5
+campfire = 1
+sleep    = 1
+
+[slots_bandit_camp]
+camper   = 0.5
+sniper   = 0.5
+guard    = 0.5
+patrol   = 0.5
+campfire = 1.5
+sleep    = 1
+
+[slots_forsworn_camp]
+camper   = 0.5
+sniper   = 0.5
+guard    = 0.5
+patrol   = 0.5
+campfire = 1.5
+sleep    = 1
+
+[slots_military_camp]
+sniper   = 0.5
+guard    = 1
+patrol   = 1
+campfire = 1
+sleep    = 1.5
+
+[slots_fort]
+sniper   = 0.5
+guard    = 1
+patrol   = 1
+campfire = 0.5
+sleep    = 1.5
+
+[slots_giant_camp]
+guard    = 0.5
+campfire = 1
+
+[slots_wilderness]
+guard     = 0.5
+patrol    = 0.5
+collector = 0.5
+campfire  = 1
+sleep     = 1
+
+[slots_farm]
+guard     = 0.5
+collector = 0.5
+campfire  = 0.5
+sleep     = 1
+
+[slots_mill]
+guard     = 0.5
+collector = 0.5
+campfire  = 0.5
+sleep     = 1
+
+[slots_inn]
+campfire = 1.5
+sleep    = 1.5
+
+[slots_town]
+guard    = 0.5
+patrol   = 0.5
+campfire = 1
+sleep    = 1
+
+[slots_orc_stronghold]
+guard    = 1
+patrol   = 0.5
+campfire = 1
+sleep    = 1
+
+[time]
+sleep_from        = 21     ; precond_safe_job_sleeper: 21:00-07:00
+sleep_to          = 7
+night_sleep_prior = 20     ; sleep outranks the fire at night (the value in gulag_general's header table)
+watch_share       = 0.25   ; at night at most ceil(living x this x Diff(Strength)) members stay on watch
+
+; campfire scene (sr_camp.script: idle 25-120 s, then a story / music / idle)
+[scene]
+idle_min       = 25
+idle_max       = 120
+story_chance   = 0.5
+chatter_chance = 0.3
+
+[rest]
+rest_rate = 1.0    ; offline: a night at a place with campfire or sleep slots recovers fatigue and cold at this x the inn rate
+
+[budget]
+scan_radius         = 3000   ; spot scan around the place's marker, once per arrival (cached)
+reassign_seconds    = 30     ; job re-check at most this often (also on hour windows, deaths, arrivals)
+max_package_changes = 2      ; EvaluatePackage calls per director tick
+
+; campfire stories: story_N = line | line | line (said by the director at the fire). Fixed text: nothing is generated at runtime.
+[stories_bandit]
+story_1 = Merchant comes up the pass with two guards. | Two guards. Thinks that's enough. | Ran faster than his horse in the end.
+story_2 = Old Krev swore the barrow had gold in it. | Found draugr instead. | We buried what was left of him at the crossroads.
+story_3 = You know why the Jarl's men never come up here? | Because last time they did, we sent their boots back. | Just the boots.
+
+[stories_imperial]
+story_1 = Spent a winter in the Pale once. | Snow up to the saddle, rations frozen solid. | And the captain still wanted the armour polished.
+story_2 = My father served at the Red Ring. | Never talked about it, not once. | Said the Legion was the only family that wouldn't leave him.
+
+[stories_stormcloak]
+story_1 = My grandmother remembered when Talos was worshipped openly. | Shrines in every village. | They'll stand again, mark me.
+story_2 = Saw Ulfric speak once in Windhelm. | Didn't even shout. | Didn't need to.
+
+[stories_wanderer]
+story_1 = Walked from Riverwood to Dawnstar once. | Wolves, a troll, and a bard who wouldn't stop singing. | The bard was the worst of it.
+story_2 = Met a Khajiit who swore he'd been to the moons. | Sold me a map to prove it. | Still have it. Still don't know which way is up.
+
+[stories_hunter]
+story_1 = Tracked a sabre cat three days through the Rift. | Turned out it was tracking me. | Have the scar to show which of us won.
+story_2 = Best pelts come after the first snow. | Thicker fur, easier tracks. | Worst frostbite too.
+
+[stories_mercenary]
+story_1 = Last contract paid double. | Should have asked why. | Never take a job from a man who won't look at you.
+story_2 = Guarded a caravan from Riften to Markarth. | Lost two wagons and the cook. | Kept the cook's recipe, though.

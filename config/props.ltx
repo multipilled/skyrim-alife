@@ -159,6 +159,27 @@ faction = thalmor
 squads = thalmor_novice, thalmor_advanced, thalmor_veteran
 num = 1.5
 
+; Solstheim (docs/SOLSTHEIM.md)
+[spawn_reaver_camp]
+faction = reaver
+squads = reaver_novice, reaver_advanced, reaver_veteran
+num = 1.0
+
+[spawn_skaal]
+faction = skaal
+squads = skaal_novice, skaal_advanced, skaal_veteran
+num = 1.0
+
+[spawn_skaal_hunters]
+faction = skaal
+squads = skaal_novice, skaal_advanced
+num = 0.5
+
+[spawn_redoran_patrol]
+faction = redoran
+squads = redoran_novice, redoran_advanced
+num = 1.0
+
 [spawn_caravan]
 faction = caravan
 squads = caravan_novice, caravan_advanced, caravan_veteran
@@ -451,6 +472,9 @@ hunter = 1
 imperial = 1
 stormcloak = 1
 bandit = 1
+skaal = 1
+redoran = 1
+reaver = 1
 
 [p_city]:default
 base = 1
@@ -465,6 +489,7 @@ hunter = 1
 mercenary = 1
 mage = 1
 caravan = 1
+skaal = 1
 respawn = owner_garrison, wanderers, mercs
 
 [p_town]:default
@@ -481,6 +506,8 @@ bandit = 1
 forsworn = 1
 silverhand = 1
 caravan = 2
+skaal = 1
+reaver = 1
 respawn = owner_patrol, wanderers_town, hunters_town, mercs_town, mages_town, caravan_town
 
 [p_inn]:default
@@ -503,6 +530,7 @@ bandit = 1
 forsworn = 1
 silverhand = 1
 caravan = 1
+reaver = 1
 respawn = hunters
 
 [p_fort]:default
@@ -520,6 +548,8 @@ thalmor = 1
 bandit = 1
 forsworn = 1
 mercenary = 1
+redoran = 2
+reaver = 1
 respawn = garrison, patrol
 
 [p_milcamp]:default
@@ -548,6 +578,8 @@ mercenary = 1
 hunter = 1
 wanderer = 1
 vigilant = 1
+redoran = 1
+skaal = 1
 respawn = bandit_camp
 
 [p_forswornccamp]:default
@@ -710,3 +742,70 @@ respawn = vigilant, dawnguard
 default_faction = silverhand
 respawn = silverhand
 silverhand = 2
+
+; ---------------------------------------------------------------- Solstheim (Dragonborn), docs/SOLSTHEIM.md
+; [loc_dlc2_<id>]: a Dragonborn.esm location by its plugin-local FormID (load-order independent; ids as in positions.ltx [pos_dlc2]).
+; Owners from the vanilla actors placed there: Reavers (Dragonborn's DLC2LCharBandit* lists), Skaal (DLC2SkaalVillageCitizenFaction),
+; Raven Rock guards (DLC2RavenRockGuardFaction). Everything else on the island defaults to Redoran ([ws_faction] in factions.ltx).
+[loc_dlc2_143B9]:p_city     ; Raven Rock
+raidable = false
+default_faction = redoran
+owner = 3
+redoran = 2
+respawn = owner_garrison, redoran_patrol, wanderers, mercs
+
+[loc_dlc2_142A4]:p_fort     ; the Earth Stone, guarded by Raven Rock
+default_faction = redoran
+faction_controlled = true
+redoran = 2
+reaver = 1
+respawn = garrison, patrol
+
+[loc_dlc2_143BB]:p_town     ; Skaal Village
+raidable = true
+default_faction = skaal
+owner = 3
+skaal = 2
+reaver = 1
+respawn = skaal, skaal_hunters, wanderers_town
+
+[loc_dlc2_39F98]:p_wild     ; Headwaters of Harstrad: Skaal hunting grounds
+skaal = 2
+max_population = 2
+default_faction = skaal
+respawn = skaal_hunters
+
+[loc_dlc2_1429C]:p_banditcamp   ; Brodir Grove
+default_faction = reaver
+reaver = 2
+respawn = reaver_camp
+
+[loc_dlc2_142BC]:p_banditcamp   ; White Ridge Barrow (Reavers camp at the entrance)
+default_faction = reaver
+reaver = 2
+respawn = reaver_camp
+
+[loc_dlc2_296DA]:p_banditcamp   ; Damphall Mine
+default_faction = reaver
+reaver = 2
+respawn = reaver_camp
+
+[loc_dlc2_142AA]:p_banditcamp   ; Horker Island
+default_faction = reaver
+reaver = 2
+respawn = reaver_camp
+
+[loc_dlc2_142C1]:p_banditcamp   ; Broken Tusk Mine
+default_faction = reaver
+reaver = 2
+respawn = reaver_camp
+
+[loc_dlc2_3A07F]:p_banditcamp   ; the Reaver camp below Bloodskal Barrow
+default_faction = reaver
+reaver = 2
+respawn = reaver_camp
+
+[loc_dlc2_142C2]:p_banditcamp   ; Haknir's Shoal
+default_faction = reaver
+reaver = 2
+respawn = reaver_camp

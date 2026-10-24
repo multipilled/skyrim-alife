@@ -1,9 +1,14 @@
+#include "ALife/Companions.h"
 #include "ALife/Forms.h"
 #include "ALife/Jobs.h"
 #include "ALife/Log.h"
 #include "ALife/Merchants.h"
 #include "ALife/Rep.h"
+#include "ALife/SaveFormat.h"
+#include "ALife/Settings.h"
 #include "ALife/Systems.h"
+#include "ALife/StashesPlugin.h"
+#include "ALife/Wounded.h"
 
 // Co-save: every piece of simulated state. Form IDs are resolved on load so load-order changes are safe; places are saved
 // by their location FormID, respawn quotas by entry name, so editing the .ltx files never corrupts an old save.
@@ -11,13 +16,14 @@ namespace ALife::Save {
 namespace {
 	constexpr std::uint32_t kUID = 'ALIF';
 	constexpr std::uint32_t kRec = 'SIM2';
-	constexpr std::uint32_t kVer = 207;   // 207: the per-faction table is written with its length (M4b: 28 factions); 206 and 205 still load
-	constexpr std::uint32_t kVerMutants = 206;   // 206: six monster factions (21 per-faction entries), creatures on screen at save time
-	constexpr int kFactionsMutants = 21;
-	constexpr std::uint32_t kVerPreMutants = 205;
-	constexpr int kFactionsPreMutants = 15;
+	using SaveFormat::kVer;   // SIM2 versions and the faction migration: ALife/SaveFormat.h
+	using SaveFormat::kVerMutants;
 	constexpr std::uint32_t kNewsRec = 'NEWS';
 	constexpr std::uint32_t kNewsVer = 1;
+	constexpr std::uint32_t kDragonRec = 'DRGN';
+	constexpr std::uint32_t kDragonVer = 1;
+	constexpr std::uint32_t kDiffRec = 'DIFF';   // T21 (docs/DIFFICULTY.md): the difficulty sliders this save is played with
+	constexpr std::uint32_t kDiffVer = 1;
 	// 205: nodes carry a worldspace (Solstheim);    // 204: a fifteenth faction (Khajiit caravans) resizes every per-faction table;    // 203: members carry levelBias / gearLevel (the world levels with the player); 202: standing (goodwill, notoriety, rumours; squad memory, toll)
 
 	struct W
@@ -83,6 +89,7 @@ namespace {
 	{
 		std::lock_guard l(Sim::Lock());
 		if (!Sim::BoardReady()) return;
+		Companions::BeforeSave();   // packs of companions on screen (gear handed over) into their records first
 		auto& P = Sim::P();
 		auto& b = Sim::B();
 		W w;
@@ -150,6 +157,9 @@ namespace {
 		else
 			Log::Line("[save] co-save " + std::to_string(w.b.size()) + " bytes, squads=" + std::to_string(gs.size()));
 		Jobs::SaveTo(a);   // record 'TASK' (docs/TASKS.md): SIM2 keeps its layout, a save without TASK simply has no jobs
+		Companions::SaveTo(a);   // record 'COMP' (docs/COMPANIONS.md): a save without it has no companions
+		Wounded::SaveTo(a);      // record 'WOND' (docs/WOUNDED.md): a save without it has nobody down; SIM2 keeps its layout (208)
+		StashPlugin::SaveTo(a);  // record 'STSH' (docs/STASHES.md): a save without it builds the stash spots afresh
 		{   // record 'NEWS' (M5g): the News page and the live relation matrix; a save without it starts both afresh
 			W n;
 			const auto lines = Rep::NewsAll();
@@ -162,15 +172,60 @@ namespace {
 			if (!a->WriteRecord(kNewsRec, kNewsVer, n.b.data(), std::uint32_t(n.b.size()))) Log::Line("[save] FAILED to write the news record");
 			else Log::Line("[save] news record: " + std::to_string(lines.size()) + " lines");
 		}
+		{   // record 'DRGN' (docs/DRAGONS.md): the dragon respawn timer and the player's dragon kills; a save without it starts the timer at the load
+			W d;
+			d.v(b.dragonLast);
+			d.v(b.dragonKills);
+			if (!a->WriteRecord(kDragonRec, kDragonVer, d.b.data(), std::uint32_t(d.b.size()))) Log::Line("[save] FAILED to write the dragon record");
+		}
+		{   // record 'DIFF' v1: follow flag, slider count, sliders (DiffChannel order). A save without it plays with the ini's
+			W d;
+			const auto& c = Settings::Get().diff;
+			d.v(std::uint8_t(c.followGame ? 1 : 0));
+			d.v(std::uint8_t(kDiffChannels));
+			for (float x : c.slider) d.v(x);
+			if (!a->WriteRecord(kDiffRec, kDiffVer, d.b.data(), std::uint32_t(d.b.size()))) Log::Line("[save] FAILED to write the difficulty record");
+		}
 	}
 
 	void LoadCb(SKSE::SerializationInterface* a)
 	{
 		std::uint32_t type, ver, len;
 		Rep::RestoreNews({});
+		bool sawDragons = false;
 		Sim::Cfg().ResetLiveRelations();   // the static matrix unless the save carries a live one
+		bool diffLoaded = false;
 		while (a->GetNextRecordInfo(type, ver, len)) {
+			if (type == kDiffRec && ver == kDiffVer) {
+				std::vector<std::uint8_t> buf(len);
+				if (a->ReadRecordData(buf.data(), len) != len) continue;
+				R r{ a, buf };
+				DifficultyChoice c = Settings::Get().diff;
+				c.followGame = r.v<std::uint8_t>() != 0;
+				const int n = r.v<std::uint8_t>();
+				for (int k = 0; r.ok && k < n; ++k) {   // a later version's extra channels are skipped, missing ones keep the ini's
+					const float x = r.v<float>();
+					if (k < kDiffChannels) c.slider[k] = ClampSlider(Sim::Cfg().diffCfg, DiffChannel(k), x);
+				}
+				if (!r.ok) continue;
+				Settings::Get().diff = c;
+				diffLoaded = true;
+				continue;
+			}
 			if (type == 'TASK') { Jobs::LoadFrom(a, ver, len); continue; }
+			if (type == 'COMP') { Companions::LoadFrom(a, ver, len); continue; }
+			if (type == kDragonRec) {   // docs/DRAGONS.md: the respawn timer and the player's dragon kills (an unknown version is skipped)
+				std::vector<std::uint8_t> buf(len);
+				if (ver != kDragonVer || a->ReadRecordData(buf.data(), len) != len) continue;
+				R r{ a, buf };
+				const double last = r.v<double>();
+				const auto kills = r.v<std::uint32_t>();
+				std::lock_guard l(Sim::Lock());
+				if (r.ok && Sim::BoardReady()) { Sim::B().dragonLast = last; Sim::B().dragonKills = kills; sawDragons = true; }
+				continue;
+			}
+			if (type == 'WOND') { Wounded::LoadFrom(a, ver, len); continue; }
+			if (type == 'STSH') { StashPlugin::LoadFrom(a, ver, len); continue; }
 			if (type == kNewsRec && ver == kNewsVer) {
 				std::vector<std::uint8_t> buf(len);
 				if (a->ReadRecordData(buf.data(), len) != len) continue;
@@ -182,39 +237,23 @@ namespace {
 				for (std::uint32_t k = 0; r.ok && k < nf * nf; ++k) m.push_back(r.v<std::int32_t>());
 				if (!r.ok) continue;
 				Rep::RestoreNews(lines);
-				if (nf == std::uint32_t(kFactionCount))
-					for (int x = 0; x < kFactionCount; ++x)
-						for (int y = 0; y < kFactionCount; ++y) Sim::Cfg().relLive[x][y] = m[std::size_t(x) * nf + std::size_t(y)];
-				Log::Line("[save] news record: " + std::to_string(lines.size()) + " lines restored");
+				const bool rel = !m.empty() && SaveFormat::RestoreRelations(Sim::Cfg().relLive, m.data(), nf);   // a 31-faction table: dragons keep the static row
+				Log::Line("[save] news record: " + std::to_string(lines.size()) + " lines restored" + (rel ? "" : ", relation matrix not used (" + std::to_string(nf) + " factions)"));
 				continue;
 			}
-			if (type != kRec || (ver != kVer && ver != kVerMutants && ver != kVerPreMutants)) continue;   // older layouts are not migrated: the world is populated afresh
+			if (type != kRec || !SaveFormat::Loads(ver)) continue;   // older layouts are not migrated: the world is populated afresh
 			std::vector<std::uint8_t> buf(len);
 			if (a->ReadRecordData(buf.data(), len) != len) continue;
 			std::lock_guard l(Sim::Lock());
 			if (!Graph::Ready()) continue;
 			R r{ a, buf };
+			auto Fac = [ver](std::uint8_t f) { return SaveFormat::FactionOf(ver, f); };   // squads, members, place owners: monsters shifted before 208
 			auto& P = Sim::P();
 			auto& b = Sim::B();
 			P = Sim::Persist{};
 			b.Reset(0);
 			b.now = r.v<double>(); P.gateOpened = r.v<bool>(); b.nextId = r.v<std::uint64_t>(); b.worldSeed = r.v<std::uint64_t>();
-			{
-				auto& st = Rep::S().state;
-				st = StandingState{};
-				// 207 says how many it wrote; 206 wrote 21, 205 wrote 15 (factions added since start at 0)
-				const int nf = ver >= kVer ? int(r.v<std::uint8_t>()) : ver >= kVerMutants ? kFactionsMutants : kFactionsPreMutants;
-				for (int f = 0; f < nf; ++f) {
-					const float v = r.v<float>();
-					if (f < kFactionCount) st.goodwill[f] = v;
-				}
-				st.notoriety = r.v<float>();
-				for (auto n = r.v<std::uint32_t>(); r.ok && n; --n) {
-					Rumor ru;
-					ru.faction = r.v<Faction>(); ru.delta = r.v<float>(); ru.dueHours = r.v<double>();
-					st.rumors.push_back(ru);
-				}
-			}
+			SaveFormat::ReadStanding(r, ver, Rep::S().state);   // goodwill table, notoriety, rumours (monsters shifted past the Solstheim three before 208)
 			for (auto n = r.v<std::uint32_t>(); r.ok && n; --n) P.waitlist.push_back(r.v<std::uint64_t>());
 			for (auto n = r.v<std::uint32_t>(); r.ok && n; --n) { auto c = r.f(); auto k = r.v<std::int32_t>(); if (c) P.queuedKills[c] = k; }
 
@@ -229,7 +268,7 @@ namespace {
 				if (id == UINT32_MAX || id >= b.smart.size()) continue;
 				auto& st = b.smart[id];
 				st.lastRespawn = lastRespawn;
-				st.faction = faction;
+				st.faction = std::uint8_t(Fac(faction));
 				st.raidedUntil = raidedUntil;
 				const auto& n = Graph::Nodes()[id];
 				st.spawned.assign(n.respawn.size(), 0);
@@ -251,7 +290,7 @@ namespace {
 			b.squads.clear();
 			for (auto ng = r.v<std::uint32_t>(); r.ok && ng; --ng) {
 				Group g;
-				g.id = r.v<std::uint64_t>(); g.faction = r.v<Faction>(); g.tier = r.v<Tier>(); g.section = r.s();
+				g.id = r.v<std::uint64_t>(); g.faction = Fac(r.v<std::uint8_t>()); g.tier = r.v<Tier>(); g.section = r.s();
 				g.x = r.v<float>(); g.y = r.v<float>(); g.z = r.v<float>();
 				g.node = std::uint32_t(std::max<std::int64_t>(0, RNode(r))); g.prevNode = std::uint32_t(std::max<std::int64_t>(0, RNode(r)));
 				if (auto* nd = Graph::Node(g.node)) g.ws = nd->ws;   // squads never change worldspace: it is the node's
@@ -265,7 +304,7 @@ namespace {
 				g.startMembers = r.v<std::int32_t>(); g.memory = r.v<float>(); g.tollUntil = r.v<double>();
 				for (auto nm = r.v<std::uint32_t>(); r.ok && nm; --nm) {
 					Member m;
-					m.id = r.v<std::uint64_t>(); m.name = r.s(); m.title = r.s(); m.faction = r.v<Faction>(); m.role = r.v<Role>();
+					m.id = r.v<std::uint64_t>(); m.name = r.s(); m.title = r.s(); m.faction = Fac(r.v<std::uint8_t>()); m.role = r.v<Role>();
 					m.race = r.v<RaceId>(); m.sex = r.v<Sex>(); m.classId = r.f(); m.level = r.v<std::int32_t>(); m.levelBias = r.v<std::int32_t>(); m.gearLevel = r.v<std::int32_t>();
 					m.skills = r.v<decltype(m.skills)>();
 					m.health = r.v<float>(); m.magicka = r.v<float>(); m.stamina = r.v<float>();
@@ -297,6 +336,13 @@ namespace {
 				Log::Line("[save] loaded squads=" + std::to_string(b.squads.size()) + " (co-save v" + std::to_string(ver) + ")");
 			}
 		}
+		if (!sawDragons) {   // a save from before M4c: the dragon timer starts now (the first dragon comes respawn_days later)
+			std::lock_guard l(Sim::Lock());
+			if (Sim::BoardReady()) Sim::B().dragonLast = Sim::B().now;
+		}
+		if (!diffLoaded) Settings::ReloadDifficulty();   // a save from before T21 (or without the record): the ini's sliders
+		Sim::ApplySettings();
+		Log::Line(std::string("[save] difficulty sliders from ") + (diffLoaded ? "the save" : "ALife.ini") + ": " + Sim::Cfg().diff.Describe());
 	}
 
 	void RevertCb(SKSE::SerializationInterface*)

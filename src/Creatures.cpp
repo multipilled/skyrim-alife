@@ -100,6 +100,11 @@ RE::Actor* Spawn(Member& a_m, RE::TESObjectREFR* a_at)
 		return nullptr;
 	}
 	gRefs[a_m.id] = a->GetHandle();
+	if (a_m.faction == Faction::Dragon && Sim::BoardReady()) {   // docs/DRAGONS.md: placed above the spot, so it arrives flying
+		auto p = a->GetPosition();
+		p.z += Sim::B().DragonEff().spawnHeight;
+		a->SetPosition(p, true);
+	}
 	const float share = a_m.health / std::max(1.f, a_m.healthMax);
 	if (share < 0.98f) gWounds[a_m.id] = std::clamp(share, 0.05f, 1.f);
 	return a;

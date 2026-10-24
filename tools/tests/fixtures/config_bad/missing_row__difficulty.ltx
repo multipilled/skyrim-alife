@@ -1,0 +1,97 @@
+; G2 fixture: master difficulty.ltx without the [legendary] row   ; EXPECT req.section
+; Difficulty scaling (docs/DIFFICULTY.md, T21).
+; Per channel: M = clamp(row of Skyrim's difficulty x MCM slider, [limits]). With "Follow game difficulty" off the row is 1.
+; Adept (the game's default) is 1.0 everywhere: an Adept game with default sliders plays exactly as before T21.
+; Anomaly reference: alife_stalker_pop / alife_mutant_pop (ui_options), economy presets econ_1..3 (plugins/difficulty.ltx).
+;
+; Channels:
+;   population  human respawn quotas (Anomaly alife_stalker_pop; MCM "Population density")
+;   monsters    monster respawn quotas (Anomaly alife_mutant_pop)
+;   strength    squad size, member level offset, gear level ([derive])
+;   lethality   offline combat damage per round
+;   economy     job gold x M; tolls and companion pay / M; stash value x M (M5f)
+;   mercy       wounded / yield / surrender chances x M, finish chance / M (M5d)
+;   tasks       job wave sizes, ambush chance, target strength (M5e)
+;   dragons     dragon frequency and level (M4c)
+
+[novice]
+population = 0.8
+monsters   = 0.75
+strength   = 0.7
+lethality  = 0.9
+economy    = 1.5
+mercy      = 1.3
+tasks      = 0.75
+dragons    = 0.6
+
+[apprentice]
+population = 0.9
+monsters   = 0.9
+strength   = 0.85
+lethality  = 0.95
+economy    = 1.25
+mercy      = 1.15
+tasks      = 0.9
+dragons    = 0.8
+
+[adept]
+population = 1.0
+monsters   = 1.0
+strength   = 1.0
+lethality  = 1.0
+economy    = 1.0
+mercy      = 1.0
+tasks      = 1.0
+dragons    = 1.0
+
+[expert]
+population = 1.05
+monsters   = 1.05
+strength   = 1.1
+lethality  = 1.0
+economy    = 0.9
+mercy      = 0.95
+tasks      = 1.1
+dragons    = 1.1
+
+[master]
+population = 1.1
+monsters   = 1.15
+strength   = 1.2
+lethality  = 1.05
+economy    = 0.8
+mercy      = 0.9
+tasks      = 1.2
+dragons    = 1.25
+
+[limits]
+population = 0.25, 2.0
+monsters   = 0.25, 2.0
+strength   = 0.4, 2.5
+lethality  = 0.25, 3.0
+economy    = 0.25, 4.0
+mercy      = 0, 3.0
+tasks      = 0.25, 3.0
+dragons    = 0, 3.0
+
+; MCM slider range per channel (min, max; step 0.1, default 1.0). Population and monsters keep the old density slider's 0.5 - 1.5.
+[sliders]
+population = 0.5, 1.5
+monsters   = 0.5, 1.5
+strength   = 0.5, 2.0
+lethality  = 0.5, 2.0
+economy    = 0.5, 2.0
+mercy      = 0.5, 2.0
+tasks      = 0.5, 2.0
+dragons    = 0.5, 2.0
+
+; what squad strength s = M(strength) does
+[derive]
+size_exponent            = 1.0    ; squad size x s ^ this (rounded at random, so the mean moves smoothly)
+max_squad_size           = 7      ; ... never above this nor the on-screen actor budget (15, or the patrol-mod budget), never below the unscaled roll when s > 1
+levels_per_strength      = 10     ; member level offset = round(this x (s - 1)): Novice 0.7 -> -3, Legendary 1.35 -> +4
+level_min                = -8
+level_max                = 10
+gear_levels_per_strength = 6      ; leveled gear resolved round(this x (s - 1)) levels higher: Legendary +2, Novice -2
+gear_min                 = -6
+gear_max                 = 10

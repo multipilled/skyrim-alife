@@ -1,0 +1,95 @@
+; Wounded, help, finish and surrender (docs/WOUNDED.md, M5d).
+; Anomaly 1.5.3: xr_wounded.script (20% threshold, autoheal 90 s), xr_help_wounded.script (squadmate medkit, rank +10..20),
+; xrs_kill_wounded.script (enemies finish the wounded; actor_cause_surrender_chance 0.25 within 8 m), dialogs.script
+; (transfer_medkit, surrender answers), xr_motivator.script (killed_prisoners -25). Distances in Skyrim units, times as noted.
+;
+; Difficulty channels (T21, docs/DIFFICULTY.md when it lands): every balance key is tagged with the channel it scales with.
+;   {lethality+}  value x m      {lethality-}  value / m      (offline / online combat lethality)
+;   {enemy+}      value x m      {enemy-}      value / m      (enemy squad strength)
+;   {economy+}    value x m      {economy-}    value / m      (goodwill, rewards and costs)
+; m > 1 makes the game harder in that channel, m = 1 is this file. Chances and shares are clamped to [0, 1] after scaling
+; (core: ScaleWoundConfig in Wounds.cpp, the one read path). Untagged keys are design values, not balance.
+
+[wounded]
+enabled           = true
+hp                = 0.20    ; {lethality-} a member under this share of its health goes down (hp_state = 20|wounded_heavy)
+chance            = 0.7     ; {lethality-} ... with this chance each time it crosses the line (the rest fight on and die normally)
+factions          = bandit, forsworn, imperial, stormcloak, thalmor, wanderer, hunter, mercenary, mage, necromancer, vampire, dawnguard, silverhand, vigilant, caravan, skaal, redoran, reaver
+ocs_chance        = 0.35    ; {lethality-} offline: a hit that would kill leaves the member down instead
+down_hp           = 0.05, 0.15   ; {lethality-} ... at this share of its health
+revive_hp         = 0.30    ; {lethality-} health share a member gets up with when it was patched up without a potion
+call_seconds      = 15      ; a down member says a help line this often while the player is near
+call_radius       = 3000
+help_radius       = 2500    ; {lethality-} a standing squadmate this close walks over and patches it up (always_help_distance)
+self_heal_seconds = 90      ; {lethality+} real seconds: it drinks a potion of its own or gets up at revive_hp (xr_wounded autoheal)
+finish_radius     = 1500    ; {lethality+} an enemy this close that fights nobody standing finishes it
+finish_delay      = 2, 5    ; {lethality-} real seconds after reaching it (xrs_kill_wounded 1.5-4.5 s)
+down_hours        = 2, 6    ; {lethality+} offline: a squad with nobody standing stays where it fell as wounded survivors this long (game hours)
+fall_back_hours   = 3, 6    ; game hours wounded survivors keep out of fights after they got up (as a squad that fled)
+helper_rank       = 10, 20  ; {enemy+} rank points a squadmate earns for patching someone up
+
+[surrender]
+yield_distance    = 600     ; a down member of a squad hostile to the player, with the player this close and armed, may yield
+yield_chance      = 0.25    ; {enemy-} ... rolled once per member (actor_cause_surrender_chance)
+losing_share      = 0.5     ; {enemy+} a squad fighting the player is losing when this share of the members it started with is dead or down
+outnumber         = 1.5     ; {enemy+} ... or outnumbered: the player's side has this many times its standing members
+spare_hours       = 12      ; game hours a spared squad backs off from the player
+release_radius    = 3000    ; a yielded squad the player walks away from gets up and backs off (no standing change)
+surrender_seconds = 120     ; ... or after this many real seconds without a choice
+
+; The player's choices (docs/WOUNDED.md s3-4). Goodwill with the squad's faction (help, finish and prisoner spill to allies through the
+; standing rules, daily gain cap applies) and the squad's own memory of the player (-1000..1000). Magnitudes; the sign is the deed's.
+[standing]
+wound_help         = 40     ; {economy-} goodwill: gave a wounded member a potion (Anomaly wounded_helped +10 reputation)
+wound_help_memory  = 300    ; {economy-} squad memory for it
+rob                = 15     ; {economy+} goodwill lost: looted a wounded or surrendered member (nothing when its squad attacked you; no spill)
+rob_memory         = 200    ; {economy+} squad memory lost for it
+finish             = 30     ; {economy+} goodwill lost: killed a wounded member (on top of the kill)
+spare              = 20     ; {economy-} goodwill: let a surrendered squad go (no spill)
+spare_memory       = 250    ; {economy-} squad memory for it
+prisoner           = 60     ; {economy+} goodwill lost: killed a surrendered member (on top of the kill, even when hostile; killed_prisoners)
+prisoner_notoriety = 40     ; {economy+} notoriety gained for it
+
+; per faction {lethality+}: chance a winner finishes each down enemy offline (outlaws and fanatics most, soldiers least).
+; Monster winners always kill the down.
+[finish]
+bandit      = 0.8
+forsworn    = 0.9
+imperial    = 0.3
+stormcloak  = 0.4
+thalmor     = 0.9
+wanderer    = 0.2
+hunter      = 0.3
+mercenary   = 0.6
+mage        = 0.3
+necromancer = 0.9
+vampire     = 1.0
+dawnguard   = 0.5
+silverhand  = 0.9
+vigilant    = 0.6
+caravan     = 0.1
+skaal       = 0.2
+redoran     = 0.4
+reaver      = 0.9
+
+; per faction {enemy-}: chance a losing or outnumbered squad fighting the player gives up (rolled once per fight). 0: fights to the end
+; at any difficulty (its wounded still go down and can be helped, finished or looted).
+[surrender_chance]
+bandit      = 0.5
+forsworn    = 0
+imperial    = 0.25
+stormcloak  = 0.25
+thalmor     = 0
+wanderer    = 0.6
+hunter      = 0.5
+mercenary   = 0.45
+mage        = 0.4
+necromancer = 0
+vampire     = 0
+dawnguard   = 0.2
+silverhand  = 0
+vigilant    = 0.3
+caravan     = 0.7
+skaal       = 0.4
+redoran     = 0.3
+reaver      = 0

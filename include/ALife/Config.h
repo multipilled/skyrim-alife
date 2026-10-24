@@ -6,7 +6,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include "ALife/Compat.h"
 #include "ALife/Core.h"
+#include "ALife/Difficulty.h"
 #include "ALife/Ltx.h"
 
 namespace ALife {
@@ -18,7 +20,8 @@ namespace PlayerFlag {
 inline constexpr std::uint32_t Imperial = 1u << 0, Stormcloak = 1u << 1, Companions = 1u << 2, ThievesGuild = 1u << 3,
 	DarkBrotherhood = 1u << 4, College = 1u << 5, Dawnguard = 1u << 6, Volkihar = 1u << 7, Blades = 1u << 8, Greybeards = 1u << 9,
 	Vampire = 1u << 10, Werewolf = 1u << 11, BeastForm = 1u << 12, Armed = 1u << 13, Sneaking = 1u << 14, Mounted = 1u << 15,
-	InCombat = 1u << 16, Night = 1u << 17;
+	InCombat = 1u << 16, Night = 1u << 17,
+	SkaalFriend = 1u << 18, RavenRock = 1u << 19;   // Dragonborn: freed the Skaal (DLC2SV01), stood by Raven Rock (DLC2RR01/02/03)
 std::uint32_t FromName(const std::string& a_name);   // 0 when unknown
 }
 
@@ -81,7 +84,7 @@ struct StandingConfig
 
 
 // Anomaly mutant communities: how a monster faction uses territories and when it may be on screen (docs/MUTANTS.md).
-enum class MonsterType : std::uint8_t { None = 0, PredatoryDay, PredatoryNight, ZombiedDay, ZombiedNight, Vegetarian, Zombied, Special };   // Special: Anomaly monster_special, keeps to its lairs at any hour
+enum class MonsterType : std::uint8_t { None = 0, PredatoryDay, PredatoryNight, ZombiedDay, ZombiedNight, Vegetarian, Zombied, Special, Flyer };   // Special: Anomaly monster_special, keeps to its lairs at any hour; Flyer: dragons (docs/DRAGONS.md), their own board path
 MonsterType MonsterTypeFromName(const std::string& a_name);   // "predatory_day" ... "zombied"; None when unknown
 
 // One kind of creature a monster squad is made of (monsters.ltx [creature_<id>]).
@@ -96,6 +99,34 @@ struct CreatureDef
 	std::vector<Item> parts;            // what a hunter takes from one (pelts, troll fat, ...): Skyrim.esm forms and counts
 };
 
+// Dragons (docs/DRAGONS.md; config/dragons.ltx, config/dragon_places.ltx). Tags name the difficulty channel each number scales
+// with (T21): [dragons] the Dragons channel (frequency, level), [-] not scaled. The board reads them only through
+// Board::DragonEff() (= ScaledDragons(config, multiplier)), never from Config directly.
+struct DragonNumbers
+{
+	float maxDragons{ 2.f };            // [dragons] dragons alive at once, world-wide (Tamriel)
+	double respawnDays{ 3.0 };          // [dragons] a new dragon this long after the last was made or killed; more dragons = sooner
+	float levelMult{ 1.f };             // [dragons] x the player level when a new dragon's tier is picked
+	float flySpeed{ 120000.f };         // [-] world units per game hour, straight line (walking: alife.ltx walk_speed 20000)
+	double stayMin{ 1.5 }, stayMax{ 4.0 };   // [-] game hours at a place before the next flight
+	float preyBonus{ 0.5f };            // [-] place weight x (1 + this x human squads staying there)
+	float lairWeight{ 3.f }, wallWeight{ 2.f }, highWeight{ 1.f };   // [-] dragon lairs, word walls, high wilderness
+	float highZ{ 10000.f };             // [-] wilderness places at least this high are dragon country
+	double fleeHours{ 6.0 };            // [-] novice / advanced human squads that fled a dragon keep away this long
+	float onlineDistance{ 16000.f }, offlineDistance{ 24000.f }, spawnHeight{ 2500.f };   // [-] plugin: on screen
+	double onlineMaxHours{ 2.0 };       // [-] plugin: then it flies off (sent offline)
+};
+struct DragonConfig : DragonNumbers
+{
+	std::vector<std::pair<std::string, int>> tiers;   // squad section, from (effective) player level; ascending
+	std::unordered_map<FormID, float> places;         // [places] location = weight (overrides; 0 removes a place)
+	std::unordered_map<FormID, int> walls;            // dragon_places.ltx [word_walls]: location -> word-wall refs
+};
+DragonNumbers ScaledDragons(const DragonNumbers& a_base, float a_dragons);   // the one place the Dragons multiplier applies
+struct GraphNode;
+struct Config;
+float DragonWeight(const Config& a_cfg, const GraphNode& a_n);             // a place: its dragon weight (call after the node flags are set)
+
 struct SquadDef
 {
 	std::string section;
@@ -108,6 +139,14 @@ struct SquadDef
 	std::vector<std::pair<int, float>> creatures;        // monster squads: creature index (Config::creatures) and weight
 	int leaderCreature{ -1 };                            // monster squads: the first member is this creature (pack leader, draugr boss)
 };
+
+// One faction's race mix (races.ltx): integer weights in draw order (the order is part of the draw: keep it when editing).
+struct RaceWeight
+{
+	RaceId race{ RaceId::Nord };
+	int w{ 1 };
+};
+using RaceTable = std::vector<RaceWeight>;
 
 struct Config
 {
@@ -144,7 +183,8 @@ struct Config
 	// [respawn]
 	float defaultRespawnIdle{ 12.f };   // respawn_idle (game hours; Anomaly 43200 s)
 	float defaultRespawnRadius{ 10500.f };   // 150 m
-	float populationFactor{ 1.f };      // alife_stalker_pop
+	float populationFactor{ 1.f };      // alife_stalker_pop: the ltx value x the patrol-mod share (difficulty: Diff(Population) on top)
+	float populationLtx{ 1.f };         // [respawn] population_factor as loaded (Sim::ApplySettings rebuilds populationFactor from it)
 	float startFill{ 0.7f };            // fraction of each smart's respawn quota present at game start
 	float monsterPopulationFactor{ 1.f };   // Anomaly alife_mutant_pop: scales monster respawn entries instead of populationFactor
 
@@ -210,6 +250,25 @@ struct Config
 	std::unordered_map<FormID, Faction> holdFaction;                              // hold location -> aligned faction
 	std::array<std::uint8_t, kWorldspaces> wsFaction{ kNoFaction, kNoFaction };   // places outside any hold (Solstheim) default to this faction
 	StandingConfig standing;                                                      // standing.ltx
+	// races.ltx (T24): [ws][faction]; an empty table in a worldspace above 0 means "as in Tamriel". The compiled-in defaults are
+	// the tables the plugin used before T24, so Tamriel squads draw exactly as before.
+	std::array<std::array<RaceTable, kFactionCount>, kWorldspaces> races;
+	const RaceTable& RacesFor(Faction a_f, int a_ws) const;
+	RaceId RollRace(Faction a_f, int a_ws, Rng& a_rng) const;   // one r.index(total) draw, as before
+
+	// [civil_war] (docs/CIVILWAR.md): the two sides, which respawn entries are a hold's guards, where the loser stands down
+	bool civilWar{ true };
+	std::array<std::uint8_t, 2> cwSides{ std::uint8_t(Faction::Imperial), std::uint8_t(Faction::Stormcloak) };
+	std::vector<std::string> guardEntries{ "owner_garrison", "owner_patrol", "garrison", "patrol" };
+	std::array<bool, kWorldspaces> standDownWs{ true, false };
+	bool IsCwSide(std::uint8_t f) const { return civilWar && (f == cwSides[0] || f == cwSides[1]); }
+	std::uint8_t CwOpponent(std::uint8_t f) const { return f == cwSides[0] ? cwSides[1] : f == cwSides[1] ? cwSides[0] : kNoFaction; }
+	// [faction_gates]: a faction has no squads until one of its quest stages is reached (the plugin reads the quests)
+	// "plugin|quest:stage", or "plugin|global=value" (global: the gate opens once the global is at least value; dragons: DragonsReturned)
+	struct FactionGate { Faction faction{ Faction::Dawnguard }; std::string plugin; FormID quest{ 0 }; std::uint16_t stage{ 0 }; bool global{ false }; float value{ 1.f }; };
+	std::vector<FactionGate> gates;
+
+	DragonConfig dragons;                  // dragons.ltx + dragon_places.ltx (docs/DRAGONS.md)
 
 	// monsters (factions.ltx [monsters], monsters.ltx)
 	std::array<MonsterType, kFactionCount> monster{};
@@ -233,6 +292,18 @@ struct Config
 		auto it = squadIndex.find(a_section);
 		return it == squadIndex.end() ? nullptr : &squads[it->second];
 	}
+
+	// compat.ltx: patrol mods sharing the world (docs/COMPAT.md). compat is filled by the host after LoadConfig
+	// (ResolveCompat with the loaded plugins), before the graph is built.
+	CompatConfig compatCfg;
+	CompatState compat;
+
+	// difficulty.ltx (docs/DIFFICULTY.md): diff is filled by ApplyDifficulty (plugin: game difficulty + MCM; harness: --difficulty / --diff).
+	// Every system reads Diff(channel) or the derived diff values, nothing else.
+	DifficultyConfig diffCfg;
+	DifficultyState diff;
+	float Diff(DiffChannel a_c) const { return diff.Get(a_c); }
+	void ApplyDifficulty(int a_game, const DifficultyChoice& a_choice) { diff = ComputeDifficulty(diffCfg, a_game, a_choice, compat.onlineActors); }
 
 	// props presets (resolved on demand from props.ltx)
 	Ltx props;

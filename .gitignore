@@ -17,3 +17,6 @@ extracted/
 .claude/worktrees/
 __pycache__/
 *.pyc
+
+# Harness reference runs (G13): made from game-derived world data, kept in $ALIFE_WORLD_DIR/golden, never committed
+tests/golden/linux/*.json

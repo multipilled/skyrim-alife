@@ -12,6 +12,9 @@ activating one of them, like anyone else.
 | **Challenge** | soldiers, Thalmor, Dawnguard, Vigilants (armed stranger they distrust); Forsworn, necromancers, vampires, the Silver Hand (you are on their ground) | demand your business | *I mean no harm* / *I don't answer to you* |
 | **Greeting** | anyone who regards you neutrally or better | an ordinary hello | *Let me see what you have for sale* (opens the barter menu on their real pack) / *What's the word on the road?* (a line, then a real recent event) |
 
+Later milestones added more modes on the same globals (`include/ALife/Talk.h` `Talk::Mode`): job topics in the greeting
+(docs/TASKS.md), 4 companion (docs/COMPANIONS.md), 5 wounded and 6 yielded (docs/WOUNDED.md).
+
 Consequences: paying a toll lets you go (they remember). Pleading poverty is believed if you are poor. Refusing, fighting
 or defying turns the squad on you, but never *during* the conversation: it takes effect once the menu has closed. Peace buys a
 few hours of being left alone. Trade and news raise a squad's memory of you a little.

@@ -43,6 +43,7 @@ void ResolveAll()
 		using namespace Local;
 		g.holdingCell = Forms::Mine<RE::TESObjectCELL>(HoldingCell);
 		for (int i = 0; i < 3; ++i) g.slotMarkers[i] = Forms::Mine<RE::TESObjectREFR>(SlotMarker0 + i);
+		for (int i = 0; i < kJobMarkers; ++i) g.jobMarkers[std::size_t(i)] = Forms::Mine<RE::TESObjectREFR>(JobMarker0 + RE::FormID(i));
 		g.holdingMarker = Forms::Mine<RE::TESObjectREFR>(HoldingMarker);
 		g.fALife = Forms::Mine<RE::TESFaction>(FactionALife);
 		g.fBandit = Forms::Mine<RE::TESFaction>(FactionBandit);
@@ -104,6 +105,8 @@ void ResolveAll()
 			  " holdingCell=" + (g.holdingCell ? "ok" : "missing") +
 			  " slotMarkers=" + std::to_string(int(g.slotMarkers[0] != nullptr) + int(g.slotMarkers[1] != nullptr) + int(g.slotMarkers[2] != nullptr)) + "/3" +
 			  " holdingMarker=" + (g.holdingMarker ? "ok" : "missing") +
+			  " jobMarkers=" + std::to_string(std::count_if(g.jobMarkers.begin(), g.jobMarkers.end(), [](auto* r) { return r != nullptr; })) + "/" +
+			  std::to_string(Local::kJobMarkers) +
 			  " whiterunHold=" + (g.whiterunHold ? "ok" : "missing") + " tamriel=" + (g.tamriel ? "ok" : "missing") +
 			  " fishing=" + (g.fishingLoaded ? "yes" : "no") +
 			  " survival=" + (g.survivalLoaded ? "yes" : "no") +

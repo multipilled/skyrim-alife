@@ -1,0 +1,6 @@
+; G2 fixture: a missing parent section and a dragon tier naming no squad
+[dragons]:dragon_base   ; EXPECT ref.parent
+max_dragons = 2
+[tiers]
+dragon_1 = 1
+dragon_9 = 50   ; EXPECT ref.squad

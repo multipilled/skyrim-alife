@@ -1,55 +1,92 @@
 ; Tasks: jobs from squad leaders (docs/TASKS.md). Anomaly: axr_task_manager.script, tm_dynamic.ltx (generic sim tasks).
 ; Distances in world units (1 km ~ 70000; a cell is 4096). Times in game hours unless named otherwise.
+; Difficulty channel of every balance number (T21, docs/TASKS.md section 8): [enemy] enemy strength, [task] task difficulty,
+; [economy] economy, [-] not scaled. The plugin applies the multipliers in one place (Tasks::Eff), never per rule.
 
 [tasks]
-max_active         = 4        ; open jobs at once (Anomaly max_tasks); the journal quest has 4 slots
-no_job_chance      = 0.3      ; a squad leader has no work for you (axr_task_manager.script:852-857)
-offer_hours        = 6        ; a squad's job offer stays the same this long (sticky, like Anomaly's dyn_quest_rand)
-repeat_hours       = 6        ; after a job from a squad ends, it has nothing new for you this long (repeat_timeout 21600)
-expire_days        = 0        ; 0: jobs never expire (Anomaly's generic jobs have no time limit)
-max_level_over     = 6        ; bounty / assault targets at most this many levels above the player
-bounty_range       = 90000
-assault_range      = 90000
-delivery_min       = 40000    ; the recipient is at least this far from the giver ...
-delivery_max       = 160000   ; ... and at most this far
-parcel_grace_hours = 0.5      ; a delivery fails when the parcel has been out of your pack this long
+max_active         = 4        ; [-] open jobs at once (Anomaly max_tasks); the journal quest has 4 slots
+no_job_chance      = 0.3      ; [-] a squad leader has no work for you (axr_task_manager.script:852-857)
+offer_hours        = 6        ; [-] a squad's job offer stays the same this long (sticky, like Anomaly's dyn_quest_rand)
+repeat_hours       = 6        ; [-] after a job from a squad ends, it has nothing new for you this long (repeat_timeout 21600)
+expire_days        = 0        ; [task] 0: jobs never expire (Anomaly's generic jobs have no time limit); harder = less time
+max_level_over     = 6        ; [enemy] bounty / assault / defend / rescue targets at most this many levels above the player
+bounty_range       = 90000    ; [-]
+assault_range      = 90000    ; [-]
+delivery_min       = 40000    ; [-] the recipient is at least this far from the giver ...
+delivery_max       = 160000   ; [-] ... and at most this far
+parcel_grace_hours = 0.5      ; [task] a delivery fails when the parcel has been out of your pack this long; harder = less
 parcel             = ALifeTalk.esp|805
+; M5e (docs/TASKS.md section 8)
+escort_min           = 40000  ; [-] escort: the destination is this far from the squad ...
+escort_max           = 160000 ; [-] ... at most
+escort_arrive        = 3000   ; [-] the squad is this close to the destination: arrived
+escort_hours_per_km  = 3      ; [task] later than this many game hours per km after acceptance: late pay (tasks_guide.script); harder = less
+defend_spawn_min     = 12000  ; [-] defend: the waves are made this far from the place ...
+defend_spawn_max     = 40000  ; [-] ... at most
+defend_waves         = 3      ; [task] attack waves, one squad each (tasks_defense.script)
+defend_wave_size     = 1.0    ; [enemy] members of a wave (and of a recover guard) x the squad description's roll
+defend_wave_max      = 5      ; [-] at most this many in one wave or guard (on-screen budget: 15 actors in 3 groups)
+rescue_range         = 90000  ; [-] rescue: giver -> the captors' place
+rescue_arrive        = 2500   ; [-] the freed captive is this close to the giver: hand-in
+recover_min          = 30000  ; [-] recover: giver -> the body ...
+recover_max          = 120000 ; [-] ... at most
+recover_spawn        = 8000   ; [-] the body is laid out once the player is this close (and the place is loaded)
+recover_guard_chance = 0.6    ; [task] an unguarded place gets a monster squad of the nearest kind (Anomaly's critters)
+satchel              = ALifeTalk.esp|80D
+hunt_marks           = 10     ; [task] marks on the hunt list (Anomaly's top 10; 3..10)
+hunt_min             = 3      ; [task] a hunt needs at least this many marks in the giver's worldspace
+rank_kill_points     = 5      ; [-] rankings: fighting value + this per kill ...
+rank_veteran         = 50     ; [-] ... + this for veterans (pda.script rankings)
 
 [rewards]
 ; Anomaly: bounty 8500-9500, assault 5500-10000, delivery 1500-4500 by distance, fetch = value x condition x mult +-10%, min 50;
 ; goodwill +50 done / -25 failed (complete_task_inc_goodwill, fail_task_dec_goodwill).
-goodwill_done     = 50
-goodwill_fail     = 25
-memory_done       = 100       ; the giver squad's own memory of the player
-memory_fail       = 50
-gold_mult         = 1.0
-gold_min          = 50
-bounty_base       = 150       ; + per level of the target
-bounty_per_level  = 15
-assault_per_squad = 120       ; + per average level of each squad at the place
-assault_per_level = 10
-delivery_base     = 80        ; + per km, straight line from giver to recipient
-delivery_per_km   = 25
-fetch_mult        = 1.3       ; x the items' value
+goodwill_done     = 50        ; [economy]
+goodwill_fail     = 25        ; [task] the penalty for a failed or abandoned job
+memory_done       = 100       ; [economy] the giver squad's own memory of the player
+memory_fail       = 50        ; [task]
+gold_mult         = 1.0       ; [economy] every job's pay
+gold_min          = 50        ; [economy]
+bounty_base       = 150       ; [economy] + per level of the target
+bounty_per_level  = 15        ; [economy]
+assault_per_squad = 120       ; [economy] + per average level of each squad at the place
+assault_per_level = 10        ; [economy]
+delivery_base     = 80        ; [economy] + per km, straight line from giver to recipient
+delivery_per_km   = 25        ; [economy]
+fetch_mult        = 1.3       ; [economy] x the items' value
+escort_base       = 100       ; [economy] + per km, straight line to the destination
+escort_per_km     = 40        ; [economy]
+escort_late_pay   = 0.5       ; [-] share of the pay when the escort arrives late (Anomaly: half)
+defend_per_wave   = 120       ; [economy] x waves, + per level of the attackers' squad
+defend_per_level  = 10        ; [economy]
+rescue_base       = 150       ; [economy] + per average level of each captor squad
+rescue_per_level  = 10        ; [economy]
+recover_base      = 120       ; [economy] + per km to the body
+recover_per_km    = 30        ; [economy]
+hunt_base         = 300       ; [economy] + per level of every mark
+hunt_per_level    = 8         ; [economy]
 
 ; Which jobs each faction hands out, with weights (tm_dynamic.ltx sim_communities). Bounty and assault targets are the
 ; giver's enemies in factions.ltx; delivery recipients are non-enemies the player can approach.
 [givers]
-imperial    = bounty:2, assault:2, delivery:1, fetch:2
-stormcloak  = bounty:2, assault:2, delivery:1, fetch:2
-thalmor     = bounty:3, assault:1, delivery:1, fetch:1
-wanderer    = bounty:1, assault:1, delivery:2, fetch:3
-hunter      = bounty:1, assault:2, delivery:1, fetch:3
-mercenary   = bounty:3, assault:2, delivery:1, fetch:1
-mage        = bounty:1, assault:1, delivery:2, fetch:3
-dawnguard   = bounty:2, assault:3, delivery:1, fetch:1
-vigilant    = bounty:2, assault:3, delivery:1, fetch:1
-silverhand  = bounty:2, assault:2, delivery:1, fetch:2
-caravan     = bounty:1, delivery:3, fetch:2
-bandit      = bounty:2, assault:1, delivery:1, fetch:2
-forsworn    = bounty:2, assault:2, fetch:2
-necromancer = bounty:1, assault:1, delivery:1, fetch:3
-vampire     = bounty:2, assault:1, fetch:2
+imperial    = bounty:2, assault:2, delivery:1, fetch:2, escort:1, defend:1, rescue:1, recover:1, hunt:1
+stormcloak  = bounty:2, assault:2, delivery:1, fetch:2, escort:1, defend:1, rescue:1, recover:1, hunt:1
+thalmor     = bounty:3, assault:1, delivery:1, fetch:1, rescue:1, recover:1, hunt:2
+wanderer    = bounty:1, assault:1, delivery:2, fetch:3, escort:2, rescue:1, recover:2
+hunter      = bounty:1, assault:2, delivery:1, fetch:3, defend:1, recover:2, hunt:1
+mercenary   = bounty:3, assault:2, delivery:1, fetch:1, escort:1, defend:1, rescue:1, hunt:2
+mage        = bounty:1, assault:1, delivery:2, fetch:3, escort:1, recover:3
+dawnguard   = bounty:2, assault:3, delivery:1, fetch:1, defend:2, rescue:1, recover:1, hunt:1
+vigilant    = bounty:2, assault:3, delivery:1, fetch:1, defend:1, rescue:1, recover:1, hunt:1
+silverhand  = bounty:2, assault:2, delivery:1, fetch:2, defend:1, recover:1, hunt:1
+caravan     = bounty:1, delivery:3, fetch:2, escort:4, rescue:1, recover:1
+bandit      = bounty:2, assault:1, delivery:1, fetch:2, defend:1, recover:1
+forsworn    = bounty:2, assault:2, fetch:2, defend:2, rescue:1
+necromancer = bounty:1, assault:1, delivery:1, fetch:3, recover:2
+vampire     = bounty:2, assault:1, fetch:2, defend:1, hunt:1
+skaal       = bounty:1, assault:2, fetch:3, defend:2, rescue:1, recover:1     ; the Skaal want the Reavers off their land and furs for the winter
+redoran     = bounty:2, assault:2, delivery:1, fetch:1, escort:1, defend:1, rescue:1, hunt:1
+reaver      = bounty:2, assault:1, fetch:2, defend:1, recover:1
 
 ; Fetch lists: name = Skyrim.esm FormID, min:max, from player level, value (the plugin uses the item's real value and name).
 [fetch_lists]
@@ -68,6 +105,9 @@ bandit      = food, soldier
 forsworn    = pelts, alchemy
 necromancer = gems, alchemy
 vampire     = gems, food
+skaal       = pelts, food
+redoran     = soldier, smith
+reaver      = food, soldier
 
 [fetch_pelts]
 Wolf_Pelt       = 3AD74, 2:5, 0, 10
@@ -121,3 +161,8 @@ Salmon_Meat   = 65C9F, 3:5, 0, 3
 
 [fetch_camp]
 Firewood      = 6F993, 4:8, 0, 5
+
+; Recover: the body is an actor of the giver's faction killed beside the place's marker, the satchel in its pack.
+; corpse_<faction> = Skyrim.esm leveled actor list (or actor base) to use for that faction's body; a faction without an entry
+; gets a pool face of its own (the plugin's squad member builder), so the list is optional.
+[recover]

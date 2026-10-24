@@ -1,11 +1,14 @@
 #include "ALife/Talk.h"
 
+#include "ALife/Companions.h"
 #include "ALife/Forms.h"
 #include "ALife/Jobs.h"
+#include "ALife/Tasks.h"
 #include "ALife/Ltx.h"
 #include "ALife/Log.h"
 #include "ALife/Rep.h"
 #include "ALife/Settings.h"
+#include "ALife/Wounded.h"
 
 namespace ALife::Talk {
 namespace {
@@ -54,6 +57,25 @@ namespace {
 		if (a == "turnin") return Choice::TurnIn;
 		if (a == "deliver") return Choice::Deliver;
 		if (a == "abandon") return Choice::Abandon;
+		if (a == "recruit") return Choice::Recruit;
+		if (a == "hireask") return Choice::HireAsk;
+		if (a == "hire1") return Choice::Hire1;
+		if (a == "hire2") return Choice::Hire2;
+		if (a == "follow") return Choice::Follow;
+		if (a == "wait") return Choice::Wait;
+		if (a == "move") return Choice::Move;
+		if (a == "hold") return Choice::HoldFire;
+		if (a == "attack") return Choice::Attack;
+		if (a == "loot") return Choice::Loot;
+		if (a == "noloot") return Choice::NoLoot;
+		if (a == "gear") return Choice::Gear;
+		if (a == "dismiss") return Choice::Dismiss;
+		if (a == "heal") return Choice::Heal;
+		if (a == "wrob") return Choice::WRob;
+		if (a == "finish") return Choice::Finish;
+		if (a == "spare") return Choice::Spare;
+		if (a == "robgo") return Choice::RobGo;
+		if (a == "nomercy") return Choice::NoMercy;
 		return Choice::None;
 	}
 
@@ -131,6 +153,16 @@ void Publish(int a_mode, int a_toll)
 	if (gToll) gToll->value = float(a_toll);
 }
 
+void PublishSquad(Group* g, int a_mode, int a_toll)
+{
+	// work is offered to a player the squad greets; a job squad travelling with the player (an escort, a freed captive) takes the
+	// hand-in in companion mode ("About that job. It's done.": ALifeTaskState 2 with ALifeTalkMode 4, docs/TASKS.md section 8)
+	static_assert(kTalkModeGreet == kGreet && kTalkModeCompanion == kCompanion, "talk modes out of sync with Tasks.h");
+	Jobs::PublishFor(g && JobTopicsInMode(a_mode) ? g : nullptr);
+	Companions::PublishFor(g, a_mode);   // ... and travel; a companion takes orders
+	Publish(a_mode, a_toll);
+}
+
 void Hold(float a_seconds) { gHold = a_seconds; }
 
 void Diagnose(RE::Actor* a)
@@ -156,7 +188,13 @@ void DebugChoose(const std::string& a_choice)
 	static const std::map<std::string, std::string> kPrompt{ { "pay", "Pay the toll" }, { "poor", "have that much" }, { "refuse", "not paying" }, { "fight", "take it" },
 															 { "peace", "mean no harm" }, { "defy", "answer to you" }, { "news", "word on the road" }, { "trade", "what you have for sale" },
 														 { "work", "any work" }, { "accept", "do it" }, { "decline", "Not right now" }, { "turnin", "It's done" },
-														 { "deliver", "delivery for you" }, { "abandon", "can't finish" } };
+														 { "deliver", "delivery for you" }, { "abandon", "can't finish" },
+														 { "travel", "Travel with me" }, { "day1", "One day" }, { "day2", "Two days" }, { "notnow", "Not today" },
+														 { "follow", "Follow me" }, { "wait", "Wait here" }, { "move", "Go up ahead" }, { "hold", "Hold your fire" },
+														 { "attack", "Fight anything" }, { "loot", "Help yourselves" }, { "noloot", "Leave the dead" },
+														 { "gear", "see your gear" }, { "dismiss", "part ways" },
+														 { "heal", "drink this" }, { "rob", "Hand over your gold" }, { "finish", "fight is over" },
+														 { "spare", "don't come back" }, { "robgo", "Empty your pockets" }, { "nomercy", "No mercy" } };
 	int a_down = 0;
 	if (auto it = kPrompt.find(a_choice); it != kPrompt.end() && mtm->dialogueList) {
 		int i = 0;
@@ -239,15 +277,23 @@ void Pump(float dt)
 		auto* a = ref ? ref->As<RE::Actor>() : nullptr;
 		if (a && Pool::IsPoolActor(a)) {
 			std::lock_guard l(Sim::Lock());
-			if (auto* g = Sim::GroupOfActor(a)) {
+			Member* who = nullptr;
+			if (auto* g = Sim::GroupOfActor(a, &who)) {
+				if (const int wm = who ? Wounded::ModeFor(*g, *who) : kNone; wm != kNone) {   // a member who is down or yielded (docs/WOUNDED.md)
+					Jobs::PublishFor(nullptr);
+					Companions::PublishFor(nullptr, kNone);
+					Wounded::Publish();
+					Publish(wm, 0);
+					return;
+				}
 				Behavior::TalkSituation(*g, mode, toll);
-				Jobs::PublishFor(mode == kGreet ? g : nullptr);   // work is offered to a player the squad greets
-				Publish(mode, toll);
+				PublishSquad(g, mode, toll);
 				return;
 			}
 		}
 	}
 	Jobs::PublishFor(nullptr);
+	Companions::PublishFor(nullptr, kNone);
 	Publish(mode, toll);
 }
 
@@ -293,6 +339,8 @@ void OnTopicInfo(const RE::TESTopicInfoEvent* e)
 	if (!g) return;
 	const bool begin = e->type.get() == RE::TESTopicInfoEvent::TopicInfoEventType::kTopicBegin;
 	Behavior::OnTalk(*g, it->second, begin);
-	if (begin && it->second >= Choice::Work) Jobs::OnChoice(g->id, it->second);   // applied after the menu has closed
+	if (begin && it->second >= Choice::Heal) Wounded::OnChoice(g->id, it->second, a);              // applied after the menu has closed
+	else if (begin && it->second >= Choice::Recruit) Companions::OnChoice(g->id, it->second, a);   // applied after the menu has closed
+	else if (begin && it->second >= Choice::Work) Jobs::OnChoice(g->id, it->second);
 }
 }

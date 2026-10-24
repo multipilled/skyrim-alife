@@ -1,0 +1,11 @@
+; G2 fixture: compat.ltx [compat] mods names a mod without its [compat_<id>] section
+[compat]
+mods = immersive_patrols, no_such_mod   ; EXPECT ref.section
+
+[compat_immersive_patrols]
+name          = Immersive Patrols SE
+plugins       = Immersive Patrols*.esp
+online_groups = 2
+online_actors = 12
+population    = 0.85
+patrol_scale  = 0.6
